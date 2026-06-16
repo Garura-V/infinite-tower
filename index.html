@@ -8115,3 +8115,239 @@ initTitle();
   else{addStyle();cleanEnemyUI();if(screen()==='scr-shop')window.renderShop();}
 })();
 </script>
+
+<script>
+/* === v26: 数字を伏せる最終調整 / 通常SP廃止 / 職業別オート成長 === */
+(()=>{
+  const $v26=id=>document.getElementById(id);
+  const STAT_ORDER_V26=['HP','MP','STR','DEX','AGI','INT','VIT','LUK'];
+  const STAT_LABEL_V26={HP:'生命',MP:'魔力',STR:'力',DEX:'技',AGI:'身軽さ',INT:'知性',VIT:'耐久',LUK:'運'};
+  const STAT_HINT_V26={
+    HP:'倒れにくくなりやすい。',MP:'技を回しやすくなりやすい。',STR:'攻めが鋭くなりやすい。',DEX:'技の冴えが増しやすい。',
+    AGI:'身のこなしが軽くなりやすい。',INT:'魔の扱いが深まりやすい。',VIT:'粘り強くなりやすい。',LUK:'拾い物に恵まれやすい。'
+  };
+  function pct(a,b){b=Number(b)||1;return Math.max(0,Math.min(100,Math.round((Number(a)||0)/b*100)));}
+  function wordByPct(x,dead,low,mid,high){x=Number(x)||0;return x<=0?dead:x<28?low:x<68?mid:high;}
+  function hpWord(p){return wordByPct(pct(p&&p.hp,p&&p.maxHp),'限界','危険','傷あり','良好');}
+  function mpWord(p){return wordByPct(pct(p&&p.mp,p&&p.maxMp),'枯渇','少なめ','余力あり','満ちている');}
+  function xpWord(p){return wordByPct(pct(p&&p.xp,p&&p.xpNext),'芽生え','少し進んだ','育っている','満ちそう');}
+  function countWord(n){n=Number(n)||0;return n<=0?'なし':n<=2?'少し':n<=6?'あり':'十分';}
+  function totalPotions(p){try{return Object.values((p&&p.inventory&&p.inventory.potions)||{}).reduce((a,b)=>a+(Number(b)||0),0)||(p&&p.potions)||0;}catch(e){return (p&&p.potions)||0;}}
+  function depthWord(f){f=Number(f)||1;return f<20?'浅い気配':f<60?'塔の中腹':f<100?'深い気配':f<200?'かなり深い':'果てに近い';}
+  function costWord(c){c=Number(c)||0;return c<=0?'なし':c<=10?'極小':c<=22?'小':c<=40?'中':c<=58?'大':'極大';}
+  function jobGrowthOrder(p){
+    const id=(p&&p.jobId)||'', name=(p&&p.job)||'';
+    if(/mage|mancer|elementalist|witch|oracle|stargazer|chrono|demonlord|mag|魔|術|星|時|炎|氷|雷|精霊/.test(id+name))return ['MP','INT','DEX','LUK','HP','AGI','VIT','STR'];
+    if(/warrior|samurai|knight|dragoon|gladiator|darknight|spiritblade|剣|侍|騎士|ドラグーン/.test(id+name))return ['HP','STR','DEX','VIT','AGI','MP','INT','LUK'];
+    if(/rogue|ninja|assassin|archer|gunner|pirate|phantom|盗|忍|暗殺|弓|ガン|海賊|幻/.test(id+name))return ['DEX','AGI','STR','LUK','HP','VIT','MP','INT'];
+    if(/paladin|sentinel|monk|fist|berserker|juggernaut|beast|番人|聖騎士|モンク|拳|バーサーカー|破壊|魔獣/.test(id+name))return ['HP','VIT','STR','DEX','AGI','MP','INT','LUK'];
+    if(/priest|druid|shaman|summoner|alchemist|herbalist|bard|fortune|神官|ドルイド|召喚|錬金|薬|吟遊|占い/.test(id+name))return ['MP','INT','HP','DEX','VIT','LUK','AGI','STR'];
+    return ['HP','STR','DEX','MP','INT','VIT','AGI','LUK'];
+  }
+  function autoGrow(p,points){
+    if(!p)return;
+    try{if(typeof ensureV3State==='function')ensureV3State(p);}catch(e){}
+    if(!p.stats)p.stats={};
+    const order=jobGrowthOrder(p);let cur=Number(p.__autoGrowthCursorV26)||0;
+    points=Math.max(0,Number(points)||0);
+    for(let i=0;i<points;i++){
+      const k=order[cur%order.length]||'HP';p.stats[k]=(Number(p.stats[k])||0)+1;cur++;
+    }
+    p.__autoGrowthCursorV26=cur;p.statPoints=0;
+    try{if(typeof syncEquipmentStats==='function')syncEquipmentStats(p);if(typeof recalcVitals==='function')recalcVitals(p);}catch(e){}
+  }
+  function consumeOldSP(){const p=window.G&&G.player;if(p&&Number(p.statPoints)>0)autoGrow(p,Number(p.statPoints));}
+  function goldToken(i){
+    let n=i+1,out='';
+    while(n>0){n--;out=String.fromCharCode(65+(n%26))+out;n=Math.floor(n/26);}
+    return `@@GOLD${out}@@`;
+  }
+  function protectGold(s){
+    const stash=[];
+    s=String(s??'').replace(/💰\s*[+＋]\s*([0-9][0-9,]*)\s*G?/g,(m,n)=>{const t=goldToken(stash.length);stash.push(`💰+${n}G`);return t;});
+    s=s.replace(/([+＋-]?\s*[0-9][0-9,]*)\s*G\b/g,(m,n)=>{const t=goldToken(stash.length);stash.push(`${String(n).replace(/\s+/g,'')}G`);return t;});
+    return {s,stash};
+  }
+  function restoreGold(s,stash){stash.forEach((v,i)=>{s=s.replaceAll(goldToken(i),v);});return s;}
+  function cleanText(raw){
+    let {s,stash}=protectGold(raw);
+    s=s.replace(/隠し補正[^。！!\n]*/g,'');
+    s=s.replace(/永久SP|通常SP|ステータスポイント|SP/g,'成長');
+    s=s.replace(/永久補正|隠しステータス|隠し/g,'');
+    s=s.replace(/XP\s*[+＋]?\s*\d+|EXP\s*:?\s*\d+/gi,'経験を得た');
+    s=s.replace(/Lv\.?\s*\d+|LV\s*\d+/gi,'成長中');
+    s=s.replace(/\d+(?:\.\d+)?\s*ダメ(?:ージ)?/g,'手応え');
+    s=s.replace(/(?:HP|MP|ATK|DEF|SPD|STR|DEX|AGI|INT|VIT|LUK)\s*[:：]?\s*[+＋-]?\s*\d+(?:\.\d+)?/gi,'能力に変化');
+    s=s.replace(/[+＋-]\s*\d+(?:\.\d+)?\s*(?:%|％|倍|ターン|T)?/g,'');
+    s=s.replace(/\d+(?:\.\d+)?\s*(?:%|％)/g,'ほどほど');
+    s=s.replace(/\d+(?:\.\d+)?\s*倍/g,'強め');
+    s=s.replace(/\d+\s*(?:ターン|T)/g,'しばらく');
+    s=s.replace(/\d+\s*階/g,'深部');
+    s=s.replace(/\d+\s*体/g,'複数体');
+    s=s.replace(/\d+\s*連(?:撃|射|属性)?/g,'連続');
+    s=s.replace(/\d+\s*個/g,'いくつか');
+    s=s.replace(/\d+\s*職/g,'多数職');
+    s=s.replace(/\d+(?:\.\d+)?/g,'');
+    s=s.replace(/\(\s*\/\s*\)|（\s*\/\s*）/g,'');
+    s=s.replace(/\s{2,}/g,' ').replace(/：\s*\//g,'：').trim();
+    return restoreGold(s,stash);
+  }
+  function sanitizeTextNodes(root){
+    if(!root)return;
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);const nodes=[];
+    while(walker.nextNode())nodes.push(walker.currentNode);
+    nodes.forEach(n=>{const old=n.nodeValue, neu=cleanText(old);if(neu!==old)n.nodeValue=neu;});
+  }
+  function renderEnemyPartyBars(){
+    const e=window.G&&G.enemy;
+    const hpv=$v26('e-hpv'), hpb=$v26('e-hpb'), atk=$v26('e-atk-v');
+    if(hpv)hpv.textContent='';
+    if(e&&hpb)hpb.style.width=pct(e.hp,e.maxHp)+'%';
+    if(atk&&atk.parentElement)atk.parentElement.style.display='none';
+    document.querySelectorAll('#e-mpv,#e-mpb,#e-mp,.enemy-mp,.enemy-mana').forEach(x=>x.remove());
+    const party=document.querySelector('#e-tags .enemy-party');
+    if(party&&window.G){
+      const list=(G.enemies&&G.enemies.length?G.enemies:[G.enemy]).filter(Boolean);
+      [...party.children].forEach((box,i)=>{
+        const x=list[i];if(!x)return;
+        box.innerHTML=`${x.s||''} ${x.n||''}<br><div class="hpb"><div class="hpf hpf-e" style="width:${pct(x.hp,x.maxHp)}%"></div></div>`;
+      });
+    }
+  }
+  function renderPlayerMystery(){
+    const p=window.G&&G.player;if(!p)return;
+    const ph=$v26('p-hpv'), pm=$v26('p-mpv'), pbar=$v26('p-hpb'), mbar=$v26('p-mpb'), ps=$v26('p-stats'), pc=$v26('pot-count');
+    const header=$v26('p-header');if(header)header.textContent=`${p.icon||''} ${p.job||'冒険者'}`;
+    if(ph)ph.textContent=hpWord(p);if(pm)pm.textContent=mpWord(p);
+    if(pbar)pbar.style.width=pct(p.hp,p.maxHp)+'%';if(mbar)mbar.style.width=pct(p.mp,p.maxMp)+'%';
+    if(ps){
+      ps.className='v26-state-grid';
+      ps.innerHTML=`<div class="v26-state"><span>生命</span><b>${hpWord(p)}</b></div><div class="v26-state"><span>魔力</span><b>${mpWord(p)}</b></div><div class="v26-state"><span>経験</span><b>${xpWord(p)}</b></div><div class="v26-state"><span>成長</span><b>自動</b></div><div class="v26-state"><span>薬</span><b>${countWord(totalPotions(p))}</b></div><div class="v26-state"><span>深度</span><b>${depthWord(p.floor)}</b></div>`;
+    }
+    if(pc)pc.textContent=countWord(totalPotions(p));
+    const eq=$v26('equip-info');
+    if(eq){
+      eq.querySelectorAll('button').forEach(b=>{b.textContent=b.textContent.replace(/ステ振り|ステ|鍛錬|SP|通常|永久/g,'成長傾向').replace(/\(.*?\)/g,'');});
+      eq.querySelectorAll('.muted').forEach(m=>{m.textContent=`所持品：${countWord(totalPotions(p))}`;});
+    }
+  }
+  function renderFloorMystery(){
+    const p=window.G&&G.player;if(!p)return;
+    const fl=$v26('g-floor-label'), seg=$v26('g-seg-label'), st=$v26('stage-sub');
+    if(fl)fl.textContent='塔を探索中';
+    if(seg)seg.textContent=depthWord(p.floor);
+    if(st)st.textContent=`現在地：${depthWord(p.floor)}`;
+    document.querySelectorAll('#floor-prog .fp-dot').forEach((d,i)=>{if(!d.classList.contains('done'))d.textContent=d.classList.contains('boss')?'B':'◆';});
+  }
+  function renderSkillsMystery(){
+    const p=window.G&&G.player;if(!p)return;
+    const skills=[p.phys,p.mag,p.ult];
+    document.querySelectorAll('#skill-list .sk-btn').forEach((btn,i)=>{
+      const sk=skills[i]||{};const cost=Math.round((Number(sk.cost)||0)*(Number(p.mpDiscount)||1));
+      const ct=btn.querySelector('.sk-ct');if(ct)ct.textContent=`消費:${costWord(cost)}${(i===2&&p.ultCd>0)?' / 待機中':''}`;
+      btn.querySelectorAll('.muted').forEach(m=>{m.textContent='効果は使って確かめる。';});
+    });
+  }
+  function hideNumberUI(){
+    consumeOldSP();renderEnemyPartyBars();renderPlayerMystery();renderFloorMystery();renderSkillsMystery();
+    ['job-count','save-notice','cl-body','over-body','stage-grid','shop-grid','equip-info','forge-box','chest-box','inv-grid','eq-slots','skill-list','job-detail','quick-actions','stat-grid-alloc'].forEach(id=>sanitizeTextNodes($v26(id)));
+    document.querySelectorAll('#scr-title [id*="hidden"],#v17-hidden-panel,#v17-job-hidden-card,#v17-hidden-chip-game,.v17-secret-chip').forEach(x=>x.remove());
+  }
+  function drawJobDetail(j){
+    const det=$v26('job-detail');if(!det||!j)return;
+    const order=jobGrowthOrder({jobId:j.id,job:j.n}).slice(0,3).map(k=>STAT_LABEL_V26[k]||k).join('・');
+    det.style.display='block';
+    det.innerHTML=`<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:24px">${j.i}</span><div><div style="font-size:15px;font-weight:500;color:var(--color-text-primary)">${j.n}</div><div class="muted">${j.t} / ${order}が伸びやすい</div></div></div>
+      <div class="v26-mystery-box">細かい数値や隠し補正は表示されない。職業ごとの癖で、レベルアップ時に自動成長する。</div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
+        <div class="surf"><span class="tag tag-phys">物理</span> ${j.phys.n} <span class="muted">消費:${costWord(j.phys.cost)}</span></div>
+        <div class="surf"><span class="tag tag-mag">魔法</span> ${j.mag.n} <span class="muted">消費:${costWord(j.mag.cost)}</span></div>
+        <div class="surf"><span class="tag tag-ult">ULT</span> ${j.ult.n} <span class="muted">消費:${costWord(j.ult.cost)}</span></div>
+      </div></div>`;
+  }
+  function renderStatsAuto(){
+    const p=window.G&&G.player;if(!p)return;consumeOldSP();
+    const sp=$v26('stat-points');if(sp)sp.textContent='自動';
+    const g=$v26('stat-grid-alloc');if(!g)return;
+    const order=jobGrowthOrder(p);const focus=new Set(order.slice(0,3));
+    g.className='screen-grid';
+    g.innerHTML='<div class="card" style="grid-column:1/-1"><b>📈 成長傾向</b><br><span class="muted">通常SPは廃止。レベルアップ時に職業の癖に合わせて自動で伸びる。</span></div>';
+    STAT_ORDER_V26.forEach(k=>{
+      const d=document.createElement('div');d.className='v26-stat-card';
+      d.innerHTML=`<b>${STAT_LABEL_V26[k]}</b><br><span class="muted">${focus.has(k)?'伸びやすい':'自然に育つ'}</span><br><span class="muted">${STAT_HINT_V26[k]}</span>`;
+      g.appendChild(d);
+    });
+    sanitizeTextNodes(g);
+  }
+  function addStyleV26(){
+    if($v26('v26-style'))return;
+    const st=document.createElement('style');st.id='v26-style';st.textContent=`
+      .v26-state-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.v26-state,.v26-stat-card,.v26-mystery-box{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:7px;font-size:11px;color:var(--color-text-secondary)}.v26-state{display:flex;justify-content:space-between;gap:8px}.v26-state b{color:var(--color-text-primary)}.v26-stat-card b{color:var(--color-text-primary)}#e-atk-v{display:none!important}.enemy-party .enemy-mini{line-height:1.4}.enemy-party .hpb{height:6px}`;
+    document.head.appendChild(st);
+  }
+
+  addStyleV26();
+  const oldCheck=window.checkLevelUp||((typeof checkLevelUp==='function')?checkLevelUp:null);
+  window.checkLevelUp=function(){
+    const p=window.G&&G.player;if(!p)return oldCheck&&oldCheck.apply(this,arguments);
+    try{if(typeof ensureV3State==='function')ensureV3State(p);}catch(e){}
+    let grew=false;
+    while(Number(p.xp)>=Number(p.xpNext||1)){
+      const need=Number(p.xpNext)||1;p.xp-=need;p.lv=(Number(p.lv)||1)+1;
+      p.xpNext=Math.round((Number(p.xpNext)||60)*1.42);
+      p.baseMaxHp=(Number(p.baseMaxHp)||Number(p.maxHp)||100)+10;
+      p.baseMaxMp=(Number(p.baseMaxMp)||Number(p.maxMp)||50)+5;
+      p.baseAtk=(Number(p.baseAtk)||Number(p.atk)||10)+1;
+      p.baseDef=(Number(p.baseDef)||Number(p.def)||5)+1;
+      autoGrow(p,3);p.hp=Math.min(p.maxHp,Number(p.hp||0)+Math.max(1,Math.round(p.maxHp*.12)));p.mp=Math.min(p.maxMp,Number(p.mp||0)+Math.max(1,Math.round(p.maxMp*.10)));grew=true;
+    }
+    if(grew&&typeof addLog==='function')addLog('🎉 経験を積んだ。身体が自然に成長した。','l-h');
+    try{renderGame();}catch(e){}try{renderStatsAuto();}catch(e){}
+  };
+  try{checkLevelUp=window.checkLevelUp;}catch(e){}
+
+  const oldAdd=window.addLog||((typeof addLog==='function')?addLog:null);
+  window.addLog=function(msg,cls){
+    const raw=String(msg??'');
+    if(/隠し補正/.test(raw))return;
+    const s=cleanText(raw).replace(/\s{2,}/g,' ').trim();
+    if(!s)return;
+    return oldAdd?oldAdd.call(this,s,cls):undefined;
+  };
+  try{addLog=window.addLog;}catch(e){}
+
+  const oldRenderGame=window.renderGame||((typeof renderGame==='function')?renderGame:null);
+  if(typeof oldRenderGame==='function'){
+    window.renderGame=function(){const r=oldRenderGame.apply(this,arguments);hideNumberUI();return r;};
+    try{renderGame=window.renderGame;}catch(e){}
+  }
+  const oldRenderSkills=window.renderSkills||((typeof renderSkills==='function')?renderSkills:null);
+  if(typeof oldRenderSkills==='function'){
+    window.renderSkills=function(){const r=oldRenderSkills.apply(this,arguments);renderSkillsMystery();sanitizeTextNodes($v26('skill-list'));return r;};
+    try{renderSkills=window.renderSkills;}catch(e){}
+  }
+  const oldSelect=window.selectJob||((typeof selectJob==='function')?selectJob:null);
+  if(typeof oldSelect==='function'){
+    window.selectJob=function(id){const r=oldSelect.apply(this,arguments);const j=(window.JOBS||JOBS).find(x=>x.id===id);drawJobDetail(j);const b=$v26('start-btn');if(b)b.disabled=false;return r;};
+    try{selectJob=window.selectJob;}catch(e){}
+  }
+  const oldRenderJobGrid=window.renderJobGrid||((typeof renderJobGrid==='function')?renderJobGrid:null);
+  if(typeof oldRenderJobGrid==='function'){
+    window.renderJobGrid=function(){const r=oldRenderJobGrid.apply(this,arguments);const jc=$v26('job-count');if(jc)jc.textContent='解放済み';document.querySelectorAll('.jcard .jt').forEach(x=>{x.textContent=cleanText(x.textContent).replace(/解放条件.*/,'条件達成で解放');});return r;};
+    try{renderJobGrid=window.renderJobGrid;}catch(e){}
+  }
+  const oldStats=window.renderStats||((typeof renderStats==='function')?renderStats:null);
+  window.renderStats=function(){renderStatsAuto();};try{renderStats=window.renderStats;}catch(e){}
+  const oldOpenStats=window.openStats||((typeof openStats==='function')?openStats:null);
+  window.openStats=function(){try{if(oldOpenStats)oldOpenStats.apply(this,arguments);else if(typeof go==='function')go('stats');}catch(e){try{go('stats');}catch(_){} }renderStatsAuto();};try{openStats=window.openStats;}catch(e){}
+  window.allocateStat=function(){consumeOldSP();renderStatsAuto();try{renderGame();}catch(e){}};try{allocateStat=window.allocateStat;}catch(e){}
+  ['showStageSelect','renderShop','renderInventory','showEvent','showClear','gameOver','updateQuickActions','openInventory','loadGame','startGame'].forEach(fn=>{
+    const old=window[fn]||((typeof globalThis!=='undefined')?globalThis[fn]:null);
+    if(typeof old==='function'){
+      window[fn]=function(){const r=old.apply(this,arguments);setTimeout(()=>{try{hideNumberUI();}catch(e){}},0);return r;};
+      try{eval(fn+'=window[fn]');}catch(e){}
+    }
+  });
+  setTimeout(()=>{try{hideNumberUI();}catch(e){}},0);
+})();
+</script>
