@@ -5354,7 +5354,7 @@ initTitle();
   const V15_META_KEY='itrl_meta_v3';
   const V15_CAT_KEY='itrl_job_category_v14';
   const V15_SECONDARY_MODE_KEY='itrl_secondary_mode_v15';
-  const BASE_JOB_COUNT_V15=50;
+  const BASE_JOB_COUNT_V15=5;
   const TARGET_JOB_COUNT_V15=1021;
   const V15_CATS=[
     {id:'all',label:'すべて',icon:'🌐'},
@@ -5547,7 +5547,7 @@ initTitle();
   try{const m=readMetaV15();if(m.unlocked<BASE_JOB_COUNT_V15){m.unlocked=BASE_JOB_COUNT_V15;saveMetaV15(m);}}catch(e){}
 
   function conditionTextV15(j){
-    if(!j||!j.v15||JOBS.indexOf(j)<BASE_JOB_COUNT_V15)return '初期50職。最初から解放';
+    if(!j||!j.v15||JOBS.indexOf(j)<BASE_JOB_COUNT_V15)return '初期5職。最初から解放';
     const v=j.v15;let parts=[];
     if(v.kind==='evolution')parts.push(`${v.evoName||'元職'}で${v.floorReq||50}階到達`);
     else parts.push(`${v.floorReq||20}階到達`);
@@ -7457,291 +7457,7 @@ initTitle();
 </script>
 
 
-<script>
-/* === v24: 5000 vague titles ===
-   Replaces the visible title UI with a roguelike-style vague title system.
-   Title effects remain internal; conditions/effects are intentionally obfuscated.
-*/
-(function(){
-  const V24_VERSION='v24_5000_vague_titles';
-  const TITLE_KEY='itrl_titles_v24';
-  const GAME_META_KEY='itrl_meta_v3';
-  const TOTAL_TITLES=5000;
-  const MAX_SCAN_PER_REFRESH=TOTAL_TITLES;
-  const STARTER_ID='v24_0';
-
-  const ICONS=['🏷️','🗼','🌫️','⚔️','🔮','🛡️','🌿','🌑','🗝️','🍀','🔥','💧','🪽','👑','🧿','🧭'];
-  const PREFIX=['静かなる','煤けた','深層の','薄明の','影踏む','古びた','星見の','境界の','霧纏う','朽ちぬ','忘れられた','名もなき','塔に選ばれし','月下の','深翠の','緋色の','白銀の','黒曜の','風待ちの','灯を継ぐ','虚ろなる','夜明けの','王国の','時渡りの','祈りなき','刃隠れの','夢見の','竜血の','砂塵の','終わらぬ'];
-  const CORE=['旅人','踏破者','剣客','魔導士','守人','薬師','狩人','祈祷師','盗掘者','挑戦者','記録者','蒐集家','呪祓い','観測者','鍵持ち','迷い子','星詠み','盾持ち','闇渡り','双装者','鍛冶見習い','宝探し','逃げ足','異端者','深読み','無謀者','選別者','古参','幻影','境界人','灰の器','塔喰い','霧の徒','調律者','残響'];
-  const TAIL=['の証','の記憶','の影','の印','の欠片','の残響','の噂','の痕跡','の灯','の祈り','の逸話','の封蝋','のささやき','の標','の古傷','の手記'];
-  const HINTS={
-    floor:['深く潜った足跡がある。','塔の奥で何かを見た者の名。','階層の記憶が、静かに刻まれている。'],
-    kill:['数多の戦いが、名を形作った。','倒した影の数だけ、何かが近づく。','刃と魔力の残り香がある。'],
-    job:['多くの道を知る者に与えられる。','職の記憶が折り重なっている。','選んだ道の数が、名を呼ぶ。'],
-    stat:['鍛錬の偏りから生まれた称号。','磨いた性質が、薄くにじんでいる。','成長の癖を塔が覚えている。'],
-    action:['戦い方の癖が、そのまま名になった。','何度も繰り返した行動の気配。','塔は行動の偏りを見逃さない。'],
-    weapon:['握った武具の記憶が残っている。','装備との相性が、名を呼び寄せた。','武器に宿った癖を塔が読んだ。'],
-    mixed:['いくつかの条件が重なっている。','偶然ではない歩みの証。','複数の痕跡が結びついた名。']
-  };
-  const AURA_TEXT={
-    life:'傷に強くなる気配がある。',
-    force:'攻めの勘が冴える気配がある。',
-    guard:'守りの姿勢が安定する気配がある。',
-    mind:'魔力の巡りが少しよくなる気配がある。',
-    speed:'身のこなしが軽くなる気配がある。',
-    luck:'拾いものに縁がありそうだ。',
-    curse:'悪いものを遠ざける気配がある。',
-    weapon:'武具が少し手に馴染む気配がある。'
-  };
-
-  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-  function readGameMeta(){
-    let m={unlocked:50,bestFloor:1,kills:0,behavior:{actions:{},stats:{},weapons:{}}};
-    try{m=Object.assign(m,JSON.parse(localStorage.getItem(GAME_META_KEY)||'{}'));}catch(e){}
-    if(!m.behavior)m.behavior={};
-    if(!m.behavior.actions)m.behavior.actions={};
-    if(!m.behavior.stats)m.behavior.stats={};
-    if(!m.behavior.weapons)m.behavior.weapons={};
-    return m;
-  }
-  function readTitleMeta(){
-    let m={unlocked:[STARTER_ID],active:STARTER_ID,seen:{},lastPopup:0};
-    try{m=Object.assign(m,JSON.parse(localStorage.getItem(TITLE_KEY)||'{}'));}catch(e){}
-    if(!Array.isArray(m.unlocked))m.unlocked=[STARTER_ID];
-    if(!m.unlocked.includes(STARTER_ID))m.unlocked.unshift(STARTER_ID);
-    if(!m.active||!m.unlocked.includes(m.active))m.active=m.unlocked[0]||STARTER_ID;
-    if(!m.seen||typeof m.seen!=='object')m.seen={};
-    return m;
-  }
-  function saveTitleMeta(m){try{localStorage.setItem(TITLE_KEY,JSON.stringify(m));}catch(e){} }
-  function hashNum(str){
-    let h=2166136261>>>0;
-    for(let i=0;i<String(str).length;i++){h^=String(str).charCodeAt(i);h=Math.imul(h,16777619)>>>0;}
-    return h>>>0;
-  }
-  function jpRank(n){
-    const words=['零','壱','弐','参','肆','伍','陸','漆','捌','玖'];
-    return String(n).split('').map(d=>words[Number(d)]||'零').join('');
-  }
-  function getBehaviorValue(m,group,key){return Number((((m.behavior||{})[group]||{})[key])||0)||0;}
-  function jobUnlockCount(m){
-    let n=Math.max(50,Number(m.unlocked)||50);
-    try{if(typeof window.unlockedAdaptiveJobsV16==='function')n+=window.unlockedAdaptiveJobsV16().length;}catch(e){}
-    return n;
-  }
-  function titleKind(i){
-    if(i===0)return 'starter';
-    const kinds=['floor','kill','job','stat','action','weapon','mixed'];
-    return kinds[i%kinds.length];
-  }
-  function titleAura(i){
-    return ['life','force','guard','mind','speed','luck','curse','weapon'][hashNum('aura_'+i)%8];
-  }
-  function makeTitle(i){
-    const kind=titleKind(i);
-    const h=hashNum('title_'+i);
-    const icon= i===0 ? '🏷️' : ICONS[h%ICONS.length];
-    const n = i===0 ? '名もなき探索者' : `${PREFIX[h%PREFIX.length]}${CORE[Math.floor(h/17)%CORE.length]}${TAIL[Math.floor(h/257)%TAIL.length]}・${jpRank((i%999)+1)}`;
-    const aura= i===0 ? 'life' : titleAura(i);
-    const hint = i===0 ? '塔に足を踏み入れた者の名。' : (HINTS[kind]||HINTS.mixed)[h%((HINTS[kind]||HINTS.mixed).length)];
-    return {id:'v24_'+i,index:i,n,icon,kind,aura,hint,rumor:AURA_TEXT[aura]||'何かが少し変わる気配がある。'};
-  }
-  function titleIndexFromId(id){const m=String(id||'').match(/^v24_(\d+)$/);return m?Math.max(0,Math.min(TOTAL_TITLES-1,Number(m[1])||0)):0;}
-  function titleById(id){return makeTitle(titleIndexFromId(id));}
-
-  function condTitle(t,gm,tm){
-    const i=t.index;
-    if(i===0)return true;
-    const ring=Math.floor(i/7);
-    const soft=Math.floor(Math.pow(i+9,1.08));
-    switch(t.kind){
-      case 'floor':{
-        const req=5 + (ring%240)*5 + Math.floor(ring/240)*120;
-        return (Number(gm.bestFloor)||1)>=req;
-      }
-      case 'kill':{
-        const req=10 + (ring%180)*8 + Math.floor(ring/180)*220;
-        return (Number(gm.kills)||0)>=req;
-      }
-      case 'job':{
-        const req=Math.min(1021, 55 + (ring%210)*4 + Math.floor(ring/210)*80);
-        return jobUnlockCount(gm)>=req;
-      }
-      case 'stat':{
-        const keys=['STR','INT','VIT','DEX','AGI','LUK','HP','MP'];
-        const k=keys[i%keys.length];
-        const req=2 + (ring%55) + Math.floor(ring/55)*14;
-        return getBehaviorValue(gm,'stats',k)>=req;
-      }
-      case 'action':{
-        const keys=['attack','defend','potion','flee','phys','mag','ult','weaponSkill','cleanse','shopBuy','chest'];
-        const k=keys[i%keys.length];
-        const req=3 + (ring%90)*2 + Math.floor(ring/90)*80;
-        return getBehaviorValue(gm,'actions',k)>=req;
-      }
-      case 'weapon':{
-        const keys=['equipWeapon','dualWield','skillWeapon','atkWeapon','magicWeapon','defWeapon','spdWeapon','weak','normal','high','ultra'];
-        const k=keys[i%keys.length];
-        const req=1 + (ring%70) + Math.floor(ring/70)*35;
-        return getBehaviorValue(gm,'weapons',k)>=req;
-      }
-      case 'mixed':{
-        const floorReq=10+(soft%650);
-        const killReq=5+(soft%420);
-        const actionReq=3+(soft%80);
-        const actionKey=['attack','defend','phys','mag','potion','chest','shopBuy'][i%7];
-        return (Number(gm.bestFloor)||1)>=floorReq && (Number(gm.kills)||0)>=killReq && getBehaviorValue(gm,'actions',actionKey)>=actionReq;
-      }
-      default:return false;
-    }
-  }
-
-  function refreshTitlesV24(opts){
-    opts=opts||{};
-    const gm=readGameMeta();
-    const tm=readTitleMeta();
-    const set=new Set(tm.unlocked);
-    const got=[];
-    for(let i=0;i<MAX_SCAN_PER_REFRESH;i++){
-      const id='v24_'+i;
-      if(set.has(id))continue;
-      const t=makeTitle(i);
-      try{if(condTitle(t,gm,tm)){set.add(id);got.push(t);}}catch(e){}
-    }
-    if(got.length){
-      tm.unlocked=Array.from(set).sort((a,b)=>titleIndexFromId(a)-titleIndexFromId(b));
-      if(!tm.active||!tm.unlocked.includes(tm.active))tm.active=tm.unlocked[0]||STARTER_ID;
-      saveTitleMeta(tm);
-      if(!opts.silent){
-        const canPopup=Date.now()-(Number(tm.lastPopup)||0)>600;
-        if(canPopup){
-          got.slice(0,3).forEach(t=>{try{if(typeof addLog==='function')addLog(`🏷️ 新たな称号：${t.icon}${t.n}`,'l-i');}catch(e){}});
-          tm.lastPopup=Date.now();saveTitleMeta(tm);
-        }
-      }
-    }
-    return {game:gm,title:readTitleMeta(),newTitles:got};
-  }
-  window.refreshTitlesV24=refreshTitlesV24;
-
-  function getUnlockedTitles(limit){
-    const tm=refreshTitlesV24({silent:true}).title;
-    const ids=(tm.unlocked||[]).slice().sort((a,b)=>titleIndexFromId(a)-titleIndexFromId(b));
-    return typeof limit==='number'?ids.slice(0,limit).map(titleById):ids.map(titleById);
-  }
-  function setActive(id){
-    const tm=readTitleMeta();
-    if(tm.unlocked.includes(id)){tm.active=id;saveTitleMeta(tm);renderTitlePanelV24();try{if(typeof renderGame==='function')renderGame();}catch(e){}}
-  }
-  window.setActiveTitleV24=setActive;
-  window.cycleTitleV24=function(dir){
-    const tm=readTitleMeta();const ids=(tm.unlocked||[]).slice().sort((a,b)=>titleIndexFromId(a)-titleIndexFromId(b));
-    if(!ids.length)return;let idx=ids.indexOf(tm.active);if(idx<0)idx=0;idx=(idx+(dir||1)+ids.length)%ids.length;setActive(ids[idx]);
-  };
-
-  function applyTitleBonusV24(p){
-    if(!p)return;
-    const tm=readTitleMeta();const t=titleById(tm.active);
-    const h=hashNum(t.id+'bonus');
-    const grade=1+Math.min(9,Math.floor(t.index/600));
-    p.v24TitleId=t.id;p.v24TitleName=t.n;p.v24TitleIcon=t.icon;p.v24TitleAura=t.aura;
-    try{
-      if(t.aura==='life'){p.maxHp+=(8+grade*4);p.hp+=(8+grade*4);p.hpRegen=(p.hpRegen||0)+Math.floor(grade/2);}
-      else if(t.aura==='force'){p.atk+=(1+grade);p.physBonus=(p.physBonus||1)*(1+0.01*grade);}
-      else if(t.aura==='guard'){p.def+=(1+grade);p.dmgReduce=Math.max(p.dmgReduce||0,Math.min(.18,(p.dmgReduce||0)+0.004*grade));}
-      else if(t.aura==='mind'){p.maxMp+=(6+grade*5);p.mp+=(6+grade*5);p.magBonus=(p.magBonus||1)*(1+0.01*grade);}
-      else if(t.aura==='speed'){p.spd+=(1+grade);p.evade=(p.evade||0)+Math.min(.12,0.006*grade);}
-      else if(t.aura==='luck'){if(p.stats)p.stats.LUK=(p.stats.LUK||0)+(2+grade);p.goldBonus=(p.goldBonus||1)*(1+0.015*grade);p.critRate=(p.critRate||0)+Math.min(.1,0.004*grade);}
-      else if(t.aura==='curse'){p.curseResist=(p.curseResist||0)+Math.min(.35,.025*grade);p.poisonImmune=!!(h%3===0)||p.poisonImmune;}
-      else if(t.aura==='weapon'){p.weaponSkillBonus=(p.weaponSkillBonus||1)*(1+0.015*grade);p.mpOnAtk=(p.mpOnAtk||0)+Math.floor(grade/2);}
-    }catch(e){}
-  }
-  window.applyTitleBonusV24=applyTitleBonusV24;
-
-  function addStyle(){
-    if(document.getElementById('v24-title-style'))return;
-    const st=document.createElement('style');st.id='v24-title-style';st.textContent=`
-      #v15-title-panel{display:none!important}
-      #v24-title-panel{border-color:rgba(120,100,200,.28);background:linear-gradient(180deg,rgba(90,80,170,.08),transparent)}
-      .v24-title-row{display:flex;gap:4px;overflow-x:auto;padding-bottom:3px;margin-top:6px}
-      .v24-mystery{display:grid;grid-template-columns:repeat(auto-fit,minmax(82px,1fr));gap:4px;margin-top:6px}
-      .v24-mystery span{font-size:10px;padding:5px 6px;border:0.5px dashed var(--color-border-tertiary);border-radius:var(--border-radius-md);color:var(--color-text-secondary);text-align:center;background:var(--color-background-secondary)}
-      .v24-title-chip{display:inline-block;font-size:10px;padding:2px 7px;border-radius:999px;background:#EEEAFE;color:#3C3489;margin:2px}
-      @media(max-width:820px){#v24-title-panel{font-size:12px}.v24-title-row .btn{min-height:32px;white-space:nowrap}.v24-mystery{grid-template-columns:repeat(2,1fr)}}
-    `;document.head.appendChild(st);
-  }
-
-  function renderTitlePanelV24(){
-    addStyle();
-    const search=document.getElementById('job-search');if(!search)return;
-    const data=refreshTitlesV24({silent:true});const tm=data.title;
-    let panel=document.getElementById('v24-title-panel');
-    if(!panel){panel=document.createElement('div');panel.id='v24-title-panel';panel.className='card';panel.style.margin='8px 0';search.parentNode.insertBefore(panel,search);}
-    const active=titleById(tm.active);
-    const unlocked=getUnlockedTitles(36);
-    const count=(tm.unlocked||[]).length;
-    const hiddenCount=Math.max(0,count-unlocked.length);
-    const mysteryStart=Math.min(TOTAL_TITLES-1, count+1);
-    const mysteries=[];
-    for(let k=0;k<6;k++){const t=makeTitle((mysteryStart+k*137)%TOTAL_TITLES);mysteries.push(`<span>？？？<br><small>${esc(t.hint)}</small></span>`);}
-    panel.innerHTML=`
-      <div style="display:flex;justify-content:space-between;gap:6px;align-items:center;flex-wrap:wrap">
-        <div><b>🏷️ 称号</b> <span class="v24-title-chip">${esc(active.icon)} ${esc(active.n)}</span></div>
-        <div class="muted">${count}/${TOTAL_TITLES}個</div>
-      </div>
-      <div class="muted" style="margin-top:4px">${esc(active.hint)} ${esc(active.rumor)}</div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
-        <button class="btn tiny-btn" onclick="cycleTitleV24(-1)">前の称号</button>
-        <button class="btn tiny-btn btn-p" onclick="cycleTitleV24(1)">次の称号</button>
-      </div>
-      <div class="v24-title-row">${unlocked.map(t=>`<button class="btn tiny-btn ${t.id===active.id?'btn-p':''}" onclick="setActiveTitleV24('${t.id}')">${esc(t.icon)} ${esc(t.n)}</button>`).join('')}${hiddenCount?`<span class="muted" style="align-self:center;white-space:nowrap">ほか ${hiddenCount} 個は記録の奥にある</span>`:''}</div>
-      <div class="v24-mystery">${mysteries.join('')}</div>`;
-  }
-  window.renderTitlePanelV24=renderTitlePanelV24;
-
-  function updateGameTitleChip(){
-    const p=G&&G.player;if(!p)return;
-    const header=document.getElementById('p-header');if(!header)return;
-    try{document.getElementById('v15-title-chip-game')?.remove();}catch(e){}
-    let chip=document.getElementById('v24-title-chip-game');
-    const t=p.v24TitleName?{n:p.v24TitleName,icon:p.v24TitleIcon||'🏷️',aura:p.v24TitleAura}:titleById(readTitleMeta().active);
-    if(!chip){chip=document.createElement('span');chip.id='v24-title-chip-game';chip.className='v24-title-chip';header.appendChild(chip);} 
-    chip.textContent=`${t.icon} ${t.n}`;
-  }
-
-  const oldStart=window.startGame||((typeof startGame==='function')?startGame:null);
-  if(typeof oldStart==='function'){
-    window.startGame=function(){
-      const r=oldStart.apply(this,arguments);
-      try{if(G&&G.player){applyTitleBonusV24(G.player);if(typeof recalcVitals==='function')recalcVitals(G.player);if(typeof renderGame==='function')renderGame();}}
-      catch(e){console.warn('v24 title bonus failed',e);} 
-      return r;
-    };
-    try{startGame=window.startGame;}catch(e){}
-  }
-
-  function wrapAfter(fnName,after){
-    const old=window[fnName]||((typeof globalThis!=='undefined')?globalThis[fnName]:null);
-    if(typeof old!=='function')return;
-    window[fnName]=function(){const r=old.apply(this,arguments);try{after&&after();}catch(e){}return r;};
-    try{eval(fnName+'=window[fnName]');}catch(e){}
-  }
-  wrapAfter('initTitle',()=>{try{const title=document.querySelector('#scr-title h2');if(title)title.textContent='🏰 無限の塔 v25';}catch(e){} renderTitlePanelV24();});
-  wrapAfter('renderJobGrid',()=>{renderTitlePanelV24();});
-  wrapAfter('filterJobs',()=>{renderTitlePanelV24();});
-  wrapAfter('renderGame',()=>{refreshTitlesV24({silent:false});updateGameTitleChip();});
-  ['advanceFloor','goNextRoomV8','goNextRoomV11','showStageSelect','showPostStageRoom','openStats','renderStats','renderInventory','renderShop','endBattle'].forEach(fn=>wrapAfter(fn,()=>{refreshTitlesV24({silent:false});setTimeout(()=>{try{renderTitlePanelV24();updateGameTitleChip();}catch(e){}},0);}));
-
-  const oldSetV15=window.setActiveTitleV15;
-  if(typeof oldSetV15==='function'){
-    window.setActiveTitleV15=function(){const r=oldSetV15.apply(this,arguments);renderTitlePanelV24();return r;};
-  }
-
-  addStyle();
-  refreshTitlesV24({silent:true});
-  setTimeout(()=>{try{const title=document.querySelector('#scr-title h2');if(title)title.textContent='🏰 無限の塔 v25';renderTitlePanelV24();}catch(e){}},0);
-})();
-</script>
+<!-- v24 heavy 5000-title scanner removed by lightweight build -->
 
 
 <script>
@@ -8028,332 +7744,187 @@ initTitle();
   setTimeout(optimizeScreenV25,250);
 })();
 </script>
+<!-- v26 mutation-observer title cleaner removed by lightweight build -->
 <script>
-/* === v26: title screen minimal UI / no counts or hidden-meta hints === */
-(()=> {
-  'use strict';
-
-  const MIN_TITLE_V26 = '🏰 無限の塔';
-  const HIDE_IDS_V26 = [
-    'job-count','job-filter-btns','job-search','job-detail',
-    'v12-title-control','v15-title-panel','v16-adaptive-panel',
-    'v17-hidden-panel','v17-job-hidden-card','v17-hidden-chip-game',
-    'v24-title-panel','v15-dual-panel'
-  ];
-  const META_TEXT_RE_V26 = /(隠し補正|適応職|称号|全\s*\d+\s*職|職ぶん生成済み|\d+\s*\/\s*\d+\s*個|全部見る|全職業|さらに表示|あと\s*\d+)/;
-
-  function prepMinimalStateV26(){
-    try{
-      localStorage.setItem('itrl_job_category_v14','all');
-      localStorage.setItem('itrl_show_all_jobs_v12','1');
-      localStorage.setItem('jobs_expanded','1');
-      localStorage.setItem('jobs_search_expanded','1');
-      localStorage.setItem('titles_expanded','0');
-    }catch(e){}
-  }
-
-  function addMinimalStyleV26(){
-    if(document.getElementById('v26-minimal-title-style'))return;
-    const st=document.createElement('style');
-    st.id='v26-minimal-title-style';
-    st.textContent=`
-      #job-count,
-      #job-filter-btns,
-      #job-search,
-      #job-detail,
-      #v12-title-control,
-      #v15-title-panel,
-      #v16-adaptive-panel,
-      #v17-hidden-panel,
-      #v17-job-hidden-card,
-      #v17-hidden-chip-game,
-      #v24-title-panel,
-      #v15-dual-panel,
-      .v15-job-meta,
-      .v16-cond,
-      .v17-secret-chip,
-      .v25-more,
-      .v12-more-card{
-        display:none!important;
-      }
-      #scr-title .jcard .jt,
-      #scr-title .jcard small{
-        display:none!important;
-      }
-      #scr-title .job-grid{
-        margin-top:8px;
-        max-height:min(68vh,620px);
-      }
-      #scr-title .jcard{
-        justify-content:center;
-      }
-      #scr-title .jcard .jn{
-        margin-top:4px;
-      }
-    `;
-    document.head.appendChild(st);
-  }
-
-  function removeByIdV26(id){
-    const el=document.getElementById(id);
-    if(el){
-      if(id==='job-count' || id==='job-filter-btns' || id==='job-search' || id==='job-detail'){
-        el.style.setProperty('display','none','important');
-        if(id==='job-count')el.textContent='';
-        if(id==='job-search')el.value='';
-        if(id==='job-detail')el.innerHTML='';
-      }else{
-        el.remove();
-      }
-    }
-  }
-
-  function simplifyJobCardsV26(){
-    const grid=document.getElementById('job-grid');
-    if(!grid)return;
-
-    [...grid.children].forEach(el=>{
-      if(!el.classList || !el.classList.contains('jcard')){
-        el.remove();
-        return;
-      }
-      const isRealChoice=(el.id||'').startsWith('jc-');
-      if(!isRealChoice){
-        el.remove();
-        return;
-      }
-      el.querySelectorAll('.jt,.v15-job-meta,.v16-cond,small,.v17-secret-chip').forEach(x=>x.remove());
-    });
-  }
-
-  function cleanTitleScreenV26(){
-    prepMinimalStateV26();
-    addMinimalStyleV26();
-
-    const scr=document.getElementById('scr-title');
-    if(!scr)return;
-
-    const h2=scr.querySelector('h2');
-    if(h2)h2.textContent=MIN_TITLE_V26;
-
-    const h3=scr.querySelector('h3');
-    if(h3){
-      h3.childNodes.forEach(n=>{
-        if(n.nodeType===Node.TEXT_NODE)n.nodeValue='職業を選ぶ';
-      });
-      const count=h3.querySelector('#job-count');
-      if(count){count.textContent='';count.style.setProperty('display','none','important');}
-    }
-
-    HIDE_IDS_V26.forEach(removeByIdV26);
-
-    scr.querySelectorAll('[id*="title-panel"],[id*="adaptive-panel"],[id*="hidden-panel"],[id*="dual-panel"],.v25-more,.v12-more-card').forEach(el=>el.remove());
-
-    simplifyJobCardsV26();
-  }
-
-  function cleanVisibleMetaV26(root=document){
-    addMinimalStyleV26();
-    root.querySelectorAll('#v17-hidden-chip-game,#v17-job-hidden-card,#v17-hidden-panel,.v17-secret-chip').forEach(el=>el.remove());
-    root.querySelectorAll('.log .l-i').forEach(el=>{
-      if(META_TEXT_RE_V26.test(el.textContent||''))el.remove();
-    });
-  }
-
-  function wrapAfterV26(name, after, forceEmptyQuery=false){
-    const old=window[name]||((typeof globalThis!=='undefined')?globalThis[name]:null);
-    if(typeof old!=='function')return;
-    window[name]=function(){
-      prepMinimalStateV26();
-      let args=arguments;
-      if(forceEmptyQuery)args=[''];
-      const res=old.apply(this,args);
-      setTimeout(()=>{try{after&&after();cleanVisibleMetaV26();}catch(e){}},0);
-      return res;
-    };
-    try{eval(name+'=window[name]');}catch(e){}
-  }
-
-  prepMinimalStateV26();
-  addMinimalStyleV26();
-
-  wrapAfterV26('initTitle', cleanTitleScreenV26);
-  wrapAfterV26('renderJobGrid', cleanTitleScreenV26, true);
-  wrapAfterV26('filterJobs', cleanTitleScreenV26, true);
-  wrapAfterV26('selectJob', cleanTitleScreenV26);
-  wrapAfterV26('renderGame', ()=>cleanVisibleMetaV26());
-
-  const oldAddLogV26=window.addLog||((typeof addLog==='function')?addLog:null);
-  if(typeof oldAddLogV26==='function'){
-    window.addLog=function(msg,cls){
-      const s=String(msg??'');
-      if(META_TEXT_RE_V26.test(s))return;
-      return oldAddLogV26.call(this,msg,cls);
-    };
-    try{addLog=window.addLog;}catch(e){}
-  }
-
-  const runV26=()=>{
-    cleanTitleScreenV26();
-    cleanVisibleMetaV26();
-    try{
-      const grid=document.getElementById('job-grid');
-      if(grid && !grid.children.length && typeof renderJobGrid==='function')renderJobGrid('');
-    }catch(e){}
-  };
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',runV26,{once:true});
-  }else{
-    runV26();
-  }
-
-  const mo=new MutationObserver(()=>runV26());
-  const startObserver=()=>{
-    const scr=document.getElementById('scr-title');
-    if(scr)mo.observe(scr,{childList:true,subtree:true,characterData:true});
-  };
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startObserver,{once:true});
-  else startObserver();
-
-  setTimeout(runV26,50);
-  setTimeout(runV26,300);
-})();
-</script>
-<script>
-/* === v27: initial 5 jobs only / condition-based job unlocks === */
+/* === v28: lightweight title/job controller ===
+   - 初期画面はタイトル・冒頭文・職業選択だけ
+   - 最初は5職のみ表示
+   - 5階ごとに1職ずつ条件解放
+   - 称号/隠し補正/検索/カテゴリ/詳細パネルの初期描画を止める
+   - 古い重いUI保存データを軽く掃除
+*/
 (()=>{
   'use strict';
 
-  const V27_INITIAL_UNLOCK_COUNT=5;
-  const V27_META_KEY='itrl_meta_v3';
-  const V27_INITIAL_JOB_IDS=['warrior','mage','rogue','paladin','berserker'];
+  const INITIAL_JOB_IDS=['warrior','mage','rogue','paladin','berserker'];
+  const META_KEY='itrl_meta_v3';
+  const SAVE_KEY_LITE=(typeof SAVE_KEY!=='undefined'?SAVE_KEY:'itrl_save_v2');
+  const LEGACY_KEYS=[
+    'itrl_titles_v24','itrl_show_all_jobs_v12','itrl_job_category_v14',
+    'itrl_titles_expanded','itrl_jobs_expanded','itrl_jobs_search_expanded'
+  ];
 
-  function clampV27(v,a,b){return Math.max(a,Math.min(b,v));}
-  function escV27(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-  function readMetaV27(){
-    try{return Object.assign({unlocked:V27_INITIAL_UNLOCK_COUNT,bestFloor:1},JSON.parse(localStorage.getItem(V27_META_KEY)||'{}'));}
-    catch(e){return {unlocked:V27_INITIAL_UNLOCK_COUNT,bestFloor:1};}
+  const oldStartGame=window.startGame||((typeof startGame==='function')?startGame:null);
+  const oldLoadGame=window.loadGame||((typeof loadGame==='function')?loadGame:null);
+  const oldGo=window.go||((typeof go==='function')?go:null);
+
+  function $(id){return document.getElementById(id);}
+  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function safeJSON(raw,def=null){try{return raw?JSON.parse(raw):def;}catch(e){return def;}}
+  function readMeta(){return Object.assign({bestFloor:1,unlocked:5}, safeJSON(localStorage.getItem(META_KEY),{})||{});}
+  function unlockedCount(){
+    const m=readMeta();
+    const best=Math.max(1,Number(m.bestFloor)||1);
+    return clamp(5+Math.floor(Math.max(0,best-1)/5),5,JOBS.length);
   }
-  function conditionUnlockedCountV27(meta){
-    const m=meta||readMetaV27();
-    const bestFloor=Math.max(1,Number(m.bestFloor)||1);
-    // 5階層進むごとに1職ずつ条件解放。初回起動・進行なしなら必ず最初の5職のみ。
-    const byFloor=V27_INITIAL_UNLOCK_COUNT+Math.floor(Math.max(0,bestFloor-1)/5);
-    return clampV27(byFloor,V27_INITIAL_UNLOCK_COUNT,JOBS.length);
-  }
-  function normalizeMetaV27(meta){
-    const m=Object.assign({unlocked:V27_INITIAL_UNLOCK_COUNT,bestFloor:1},meta||readMetaV27());
-    const allowed=conditionUnlockedCountV27(m);
-    // 進行条件より多く解放されている古い保存データは表示に出さない。
-    // 逆に、条件達成済みなら自動でそこまで解放する。
-    m.unlocked=allowed;
+  function normalizeMeta(){
+    const m=readMeta();
+    m.bestFloor=Math.max(1,Number(m.bestFloor)||1);
+    m.unlocked=unlockedCount();
+    try{localStorage.setItem(META_KEY,JSON.stringify(m));}catch(e){}
     return m;
   }
-  function saveMetaRawV27(m){try{localStorage.setItem(V27_META_KEY,JSON.stringify(m));}catch(e){}}
-  function reconcileMetaV27(){const m=normalizeMetaV27(readMetaV27());saveMetaRawV27(m);return m;}
-  function unlockedJobsV27(){
-    const n=conditionUnlockedCountV27(reconcileMetaV27());
-    return JOBS.map((j,i)=>Object.assign({idx:i},j)).filter(j=>iLessV27(j.idx,n));
-  }
-  function iLessV27(i,n){return Number(i)>=0 && Number(i)<Number(n);}
-  function isUnlockedJobV27(id){
+  function isUnlocked(id){
     const idx=JOBS.findIndex(j=>j.id===id);
-    return idx>=0 && idx<conditionUnlockedCountV27(reconcileMetaV27());
+    return idx>=0 && idx<unlockedCount();
   }
-  function cleanTitleExtrasV27(){
-    const ids=['job-count','job-filter-btns','job-search','job-detail','v12-title-control','v15-title-panel','v16-adaptive-panel','v17-hidden-panel','v24-title-panel','v15-dual-panel'];
-    ids.forEach(id=>{
-      const el=document.getElementById(id);if(!el)return;
-      el.style.setProperty('display','none','important');
-      if(id==='job-count')el.textContent='';
-      if(id==='job-search')el.value='';
-      if(id==='job-detail')el.innerHTML='';
-    });
-    const h2=document.querySelector('#scr-title h2');if(h2)h2.textContent='🏰 無限の塔';
-    const h3=document.querySelector('#scr-title h3');
-    if(h3){
-      h3.childNodes.forEach(n=>{if(n.nodeType===Node.TEXT_NODE)n.nodeValue='職業を選ぶ';});
-    }
+  function cleanupLegacyStorage(){
+    try{LEGACY_KEYS.forEach(k=>localStorage.removeItem(k));}catch(e){}
   }
-  function addStyleV27(){
-    if(document.getElementById('v27-initial-jobs-style'))return;
-    const st=document.createElement('style');st.id='v27-initial-jobs-style';
+
+  function addLiteStyle(){
+    if($('v28-lite-style'))return;
+    const st=document.createElement('style');
+    st.id='v28-lite-style';
     st.textContent=`
       #job-count,#job-filter-btns,#job-search,#job-detail,
       #v12-title-control,#v15-title-panel,#v16-adaptive-panel,#v17-hidden-panel,#v24-title-panel,#v15-dual-panel,
       .v12-more-card,.v25-more,.v15-job-meta,.v16-cond,.v17-secret-chip{display:none!important}
+      #scr-title{display:block!important;max-width:720px;margin:0 auto;}
+      #scr-title > div:first-child{text-align:center!important;padding:18px 0 12px!important}
+      #scr-title h2{font-size:26px!important;letter-spacing:.01em}
+      #scr-title .job-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px;max-height:none!important;overflow:visible!important;margin-top:10px;contain:layout style;}
+      #scr-title .jcard{min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;content-visibility:auto;contain-intrinsic-size:92px 128px;}
       #scr-title .jcard .jt,#scr-title .jcard small{display:none!important}
-      #scr-title .job-grid{margin-top:8px;max-height:min(68vh,620px)}
+      #scr-title .jcard.sel{border:2px solid #534AB7;background:var(--color-background-secondary)}
+      #start-btn{min-height:44px}
+      @media(max-width:620px){#app{padding:8px;max-width:100%}#scr-title .job-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.jcard{min-height:84px}}
     `;
     document.head.appendChild(st);
   }
-  function renderJobGridV27(q){
-    addStyleV27();cleanTitleExtrasV27();
-    const grid=document.getElementById('job-grid');if(!grid)return;
-    const query=String(q||'');
-    const lc=query.toLowerCase();
-    let jobs=unlockedJobsV27();
-    if(query){jobs=jobs.filter(j=>j.n.includes(query)||j.t.includes(query)||j.id.includes(lc));}
-    grid.innerHTML='';
-    jobs.forEach(j=>{
-      const d=document.createElement('div');
-      d.className='jcard';d.id='jc-'+j.id;
-      d.innerHTML=`<div class="ji">${escV27(j.i)}</div><div class="jn">${escV27(j.n)}</div>`;
-      d.onclick=()=>selectJob(j.id);
-      grid.appendChild(d);
+
+  function cleanTitleDOM(){
+    addLiteStyle();
+    const title=document.querySelector('#scr-title h2'); if(title)title.textContent='🏰 無限の塔';
+    const lead=document.querySelector('#scr-title p'); if(lead)lead.textContent='塔に終わりはない。';
+    const sub=document.querySelector('#scr-title > div:first-child > div:first-child'); if(sub)sub.textContent='INFINITE TOWER ROGUELIKE';
+    const h3=document.querySelector('#scr-title h3');
+    if(h3){
+      h3.childNodes.forEach(n=>{if(n.nodeType===Node.TEXT_NODE)n.nodeValue='職業を選ぶ';});
+      const count=$('job-count'); if(count){count.textContent=''; count.style.setProperty('display','none','important');}
+    }
+    ['job-filter-btns','job-search','job-detail','v12-title-control','v15-title-panel','v16-adaptive-panel','v17-hidden-panel','v24-title-panel','v15-dual-panel'].forEach(id=>{
+      const el=$(id); if(!el)return;
+      if(id==='job-search')el.value='';
+      if(id==='job-detail')el.innerHTML='';
+      el.style.setProperty('display','none','important');
     });
+    document.querySelectorAll('#scr-title [id*="title-panel"],#scr-title [id*="adaptive-panel"],#scr-title [id*="hidden-panel"],#scr-title [id*="dual-panel"],#scr-title .v25-more,#scr-title .v12-more-card').forEach(el=>el.remove());
   }
 
-  // meta系を条件開放ベースに固定する
-  const oldSaveMetaV27=window.saveMetaV3||((typeof saveMetaV3==='function')?saveMetaV3:null);
-  window.metaV3=function(){return normalizeMetaV27(readMetaV27());};
+  function liteJobs(){
+    normalizeMeta();
+    const n=unlockedCount();
+    return JOBS.map((j,i)=>Object.assign({idx:i},j)).filter(j=>j.idx<n);
+  }
+
+  function renderJobGridLite(){
+    cleanTitleDOM();
+    const grid=$('job-grid'); if(!grid)return;
+    const frag=document.createDocumentFragment();
+    liteJobs().forEach(j=>{
+      const d=document.createElement('div');
+      d.className='jcard';
+      d.id='jc-'+j.id;
+      d.innerHTML=`<div class="ji">${esc(j.i)}</div><div class="jn">${esc(j.n)}</div>`;
+      d.onclick=()=>selectJobLite(j.id);
+      frag.appendChild(d);
+    });
+    grid.replaceChildren(frag);
+    const start=$('start-btn'); if(start)start.disabled=!G?.selectedJob;
+  }
+
+  function selectJobLite(id){
+    if(!isUnlocked(id))return;
+    if(typeof G==='object')G.selectedJob=id;
+    document.querySelectorAll('#job-grid .jcard').forEach(c=>c.classList.toggle('sel',c.id==='jc-'+id));
+    const start=$('start-btn'); if(start)start.disabled=false;
+    const detail=$('job-detail'); if(detail){detail.innerHTML='';detail.style.setProperty('display','none','important');}
+  }
+
+  function renderSaveNotice(){
+    const sn=$('save-notice'); const lb=$('load-btn');
+    if(!sn||!lb)return;
+    const raw=localStorage.getItem(SAVE_KEY_LITE);
+    const d=safeJSON(raw,null);
+    if(d&&d.player){
+      sn.style.display='block';
+      sn.innerHTML=`<div class="surf" style="font-size:12px;color:var(--color-text-secondary)"><span class="save-dot"></span>セーブデータあり：${esc(d.player.job||'冒険者')} — ${esc(d.player.floor||1)}階</div>`;
+      lb.style.display='block';
+    }else{
+      if(raw)try{localStorage.removeItem(SAVE_KEY_LITE);}catch(e){}
+      sn.style.display='none';
+      lb.style.display='none';
+    }
+  }
+
+  function initTitleLite(){
+    try{cleanupLegacyStorage();normalizeMeta();}catch(e){}
+    if(typeof G==='object')G={};
+    addLiteStyle();
+    cleanTitleDOM();
+    renderJobGridLite();
+    renderSaveNotice();
+    if(typeof oldGo==='function')oldGo('title');
+    else document.querySelectorAll('.scr').forEach(x=>x.classList.toggle('on',x.id==='scr-title'));
+  }
+
+  window.renderJobGrid=()=>renderJobGridLite();
+  window.filterJobs=()=>renderJobGridLite();
+  window.selectJob=selectJobLite;
+  window.initTitle=initTitleLite;
+  window.jobUnlockedCount=unlockedCount;
+  window.metaV3=function(){return normalizeMeta();};
   window.saveMetaV3=function(m){
-    const normalized=normalizeMetaV27(m||readMetaV27());
-    if(typeof oldSaveMetaV27==='function'){
-      try{return oldSaveMetaV27(normalized);}catch(e){}
-    }
-    saveMetaRawV27(normalized);
+    const cur=Object.assign(readMeta(),m||{});
+    cur.bestFloor=Math.max(1,Number(cur.bestFloor)||1);
+    cur.unlocked=clamp(5+Math.floor(Math.max(0,cur.bestFloor-1)/5),5,JOBS.length);
+    try{localStorage.setItem(META_KEY,JSON.stringify(cur));}catch(e){}
   };
-  window.jobUnlockedCount=function(){return conditionUnlockedCountV27(reconcileMetaV27());};
-  try{metaV3=window.metaV3;}catch(e){}
-  try{saveMetaV3=window.saveMetaV3;}catch(e){}
-  try{jobUnlockedCount=window.jobUnlockedCount;}catch(e){}
-
-  // 既存の選択関数にもロック判定をかける
-  const oldSelectJobV27=window.selectJob||((typeof selectJob==='function')?selectJob:null);
-  window.selectJob=function(id){
-    if(!isUnlockedJobV27(id)){
-      const st=document.getElementById('start-btn');if(st)st.disabled=true;
-      return;
-    }
-    return oldSelectJobV27&&oldSelectJobV27(id);
+  window.startGame=function(){
+    if(!G||!G.selectedJob||!isUnlocked(G.selectedJob))return;
+    return oldStartGame&&oldStartGame.apply(this,arguments);
   };
-  try{selectJob=window.selectJob;}catch(e){}
+  window.loadGame=function(){
+    try{return oldLoadGame&&oldLoadGame.apply(this,arguments);}catch(e){
+      console.warn('save load failed; removed broken save',e);
+      try{localStorage.removeItem(SAVE_KEY_LITE);}catch(_){}
+      initTitleLite();
+    }
+  };
 
-  window.renderJobGrid=renderJobGridV27;
-  window.filterJobs=function(){renderJobGrid('');};
   try{renderJobGrid=window.renderJobGrid;}catch(e){}
   try{filterJobs=window.filterJobs;}catch(e){}
-
-  function runV27(){
-    reconcileMetaV27();
-    addStyleV27();
-    cleanTitleExtrasV27();
-    renderJobGridV27('');
-  }
-
-  const oldInitTitleV27=window.initTitle||((typeof initTitle==='function')?initTitle:null);
-  window.initTitle=function(){
-    const r=oldInitTitleV27&&oldInitTitleV27.apply(this,arguments);
-    setTimeout(runV27,0);
-    return r;
-  };
+  try{selectJob=window.selectJob;}catch(e){}
   try{initTitle=window.initTitle;}catch(e){}
+  try{startGame=window.startGame;}catch(e){}
+  try{loadGame=window.loadGame;}catch(e){}
+  try{jobUnlockedCount=window.jobUnlockedCount;}catch(e){}
+  try{metaV3=window.metaV3;}catch(e){}
+  try{saveMetaV3=window.saveMetaV3;}catch(e){}
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',runV27,{once:true});
-  else runV27();
-  setTimeout(runV27,80);
-  setTimeout(runV27,350);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initTitleLite,{once:true});
+  else initTitleLite();
 })();
 </script>
