@@ -7149,3 +7149,173 @@ try{
   else {addV29Style();try{if(screen()==='shop')renderShop();}catch(e){}}
 })();
 </script>
+
+<script>
+/* === v30: shop stock hard-fix / stable 20 items / no collapse after buy === */
+(()=>{
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const ensure=p=>{try{if(p&&typeof ensureV3State==='function')ensureV3State(p);}catch(e){} return p;};
+  const label=item=>{
+    if(!item)return '品物';
+    if(item.t==='equip')return item.eq&&item.eq.slot==='weapon'?'武器':(item.eq&&/head|body|feet|armor/.test(item.eq.slot)?'防具':'装備');
+    if(item.t==='skill')return '技書';
+    if(item.t==='orb'||item.t==='orb2')return 'オーブ';
+    if(item.t==='potion')return '回復薬';
+    if(item.t==='key')return '鍵';
+    if(item.t==='material')return '素材';
+    return '品物';
+  };
+  function addStyle(){
+    if($('v30-style'))return;
+    const st=document.createElement('style');st.id='v30-style';
+    st.textContent=`#shop-grid{grid-template-columns:repeat(auto-fill,minmax(138px,1fr))!important;gap:7px!important;contain:layout style}#shop-grid .card{padding:9px!important;min-height:92px;content-visibility:auto;contain-intrinsic-size:96px 150px}.v30-kind{display:inline-block;font-size:10px;border-radius:99px;padding:2px 7px;background:var(--color-background-secondary);color:var(--color-text-secondary);margin-bottom:4px}.v30-price{font-size:12px;color:#BA7517;font-weight:500;margin-top:5px}#shop-material-tools,#v11-shop-rate-note,#v12-shop-simple-note{display:none!important}`;
+    document.head.appendChild(st);
+  }
+  function equipItem(slot){
+    const p=G&&G.player, f=(p&&p.floor)||1; let eq=null;
+    try{eq=makeEquip(slot,f);}catch(e){}
+    if(!eq)eq={id:'eq'+Date.now()+Math.random(),slot:slot==='weapon'?'weapon':'body',n:slot==='weapon'?'古びた武器':'古びた防具',rarJp:'ふつう',stats:{}};
+    const type=eq.slot==='weapon'?'武器':(/head|body|feet|armor/.test(eq.slot)?'防具':'装飾品');
+    const rare=String(eq.rarJp||'ふつう').replace(/超上振れ|上振れ|超強/g,'珍品');
+    const power=((eq.stats&&eq.stats.atk)||0)+((eq.stats&&eq.stats.def)||0);
+    return {t:'equip',n:String(eq.n||type).replace(/超上振れ|上振れ|超強/g,'珍しい'),d:`${type} / ${rare}`,c:Math.max(20,Math.round(45+f*6+power*4)),eq};
+  }
+  function skillItem(target,kind){
+    const f=(G&&G.player&&G.player.floor)||1;
+    const jp={phys:'物理',mag:'魔法',ult:'奥義'}[target]||'技';
+    return kind==='cost'
+      ? {t:'skill',target,kind,n:`${jp}の省エネ書`,d:'扱いやすくなる。',c:70+f*6}
+      : {t:'skill',target,kind:'power',n:`${jp}の強化書`,d:'技のキレが増す。',c:90+f*8};
+  }
+  function orbItem(){
+    const f=(G&&G.player&&G.player.floor)||1;
+    const kind=pick(['atk','def','hpdrain','mpdrain','crit','luck']);
+    const rank=pick(['micro','small','small','mid','mid','large','huge']);
+    const jp={atk:'攻撃強化',def:'防御強化',hpdrain:'吸収',mpdrain:'魔力回収',crit:'会心',luck:'幸運'}[kind];
+    const rjp={micro:'極小',small:'小',mid:'中',large:'大',huge:'極大'}[rank];
+    const price={micro:60,small:95,mid:145,large:230,huge:380}[rank]+f*rnd(4,9);
+    return {t:'orb',orb:{kind,rank},n:`スキルオーブ：${jp}【${rjp}】`,d:'装着すると何かが伸びる。',c:price};
+  }
+  function potionItem(id,qty){
+    const f=(G&&G.player&&G.player.floor)||1;
+    const defs=(typeof POTION_DEF!=='undefined'?POTION_DEF:[]);
+    const po=defs.find(x=>x.id===id)||pick(defs)||{id:'p35',jp:'回復薬'};
+    const desc={p20:'小回復',p35:'回復',p50:'大回復',p75:'特大回復',p100:'全快級'}[po.id]||'回復';
+    return {t:'potion',pid:po.id,qty:qty||1,n:`${po.jp}${qty>1?'×'+qty:''}`,d:desc,c:18+f*2+({p20:0,p35:20,p50:55,p75:105,p100:180}[po.id]||25)};
+  }
+  function keyItem(color){
+    const f=(G&&G.player&&G.player.floor)||1;
+    const colors=(typeof ADV_COLORS!=='undefined'?ADV_COLORS:['銅','銀','金','虹']);
+    const icons=(typeof ADV_COLOR_ICON!=='undefined'?ADV_COLOR_ICON:{});
+    color=color||pick(colors);
+    return {t:'key',color,n:`${icons[color]||'🔑'} ${color}の鍵`,d:'同じ色の宝箱に使う。',c:30+f*3+Math.max(0,colors.indexOf(color))*55};
+  }
+  function stock20(){
+    const f=(G&&G.player&&G.player.floor)||1;
+    const colors=(typeof ADV_COLORS!=='undefined'?ADV_COLORS:['銅','銀','金','虹']);
+    const pool=[];
+    for(let i=0;i<5;i++)pool.push(equipItem('weapon'));
+    for(let i=0;i<5;i++)pool.push(equipItem(pick(['armor','accessory','body','head','feet'])));
+    ['phys','mag','ult'].forEach(t=>{pool.push(skillItem(t,'power'));pool.push(skillItem(t,'cost'));});
+    for(let i=0;i<7;i++)pool.push(orbItem());
+    pool.push(potionItem('p20',2),potionItem('p35',2),potionItem('p50',1),potionItem('p75',1),potionItem('p100',1));
+    colors.forEach(c=>pool.push(keyItem(c)));
+    pool.push({t:'material',mat:'万能素材',qty:rnd(3,7),n:'素材袋',d:'鍛冶に使えそう。',c:35+f*3});
+    pool.push({t:'material',mat:'希少な結晶素材',qty:1,n:'希少素材袋',d:'いい素材の気配。',c:110+f*7});
+    return shuffle(pool).slice(0,20);
+  }
+  function normalizeStock(force){
+    if(!G)return [];
+    if(force||!Array.isArray(G.shopStock)||G.shopStock.length!==20)G.shopStock=stock20();
+    return G.shopStock;
+  }
+  window.generateShopStock=stock20;
+  try{generateShopStock=window.generateShopStock;}catch(e){}
+
+  window.renderShop=function(){
+    addStyle();
+    const p=ensure(G&&G.player); if(!p)return;
+    const gold=$('sh-gold'); if(gold)gold.textContent=p.gold;
+    const stock=normalizeStock(false), grid=$('shop-grid'); if(!grid)return;
+    grid.innerHTML=stock.map((it,i)=>`<div class="card" data-v30-shop="${i}" style="cursor:${it&&it.sold?'default':'pointer'};opacity:${it&&it.sold?'.42':'1'}"><span class="v30-kind">${esc(label(it))}</span><div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${it&&it.sold?'✅ ':''}${esc(it&&it.n)}</div><div class="muted" style="margin-top:3px">${esc(it&&it.d)}</div><div class="v30-price">💰 ${esc(it&&it.c)}G</div></div>`).join('');
+    if(!grid.dataset.v30Click){
+      grid.dataset.v30Click='1';
+      grid.addEventListener('click',ev=>{const card=ev.target.closest('[data-v30-shop],[data-shop-idx]'); if(!card)return; ev.preventDefault(); ev.stopImmediatePropagation(); const idx=Number(card.dataset.v30Shop??card.dataset.shopIdx); if(Number.isFinite(idx))window.buyShopItemV3(idx);},true);
+    }
+    $('shop-material-tools')?.remove(); $('v11-shop-rate-note')?.remove(); $('v12-shop-simple-note')?.remove();
+    const leaveBtn=document.querySelector('#scr-shop .btn-p');
+    let reroll=$('shop-reroll-btn');
+    if(!reroll&&leaveBtn){reroll=document.createElement('button');reroll.id='shop-reroll-btn';reroll.className='btn';reroll.style='width:100%;margin-top:8px;padding:8px';leaveBtn.parentNode.insertBefore(reroll,leaveBtn);}
+    if(reroll){const cost=35+p.floor*2;reroll.textContent=`🔄 商品入れ替え（${cost}G）`;reroll.onclick=()=>window.rerollShop();}
+    if(leaveBtn){leaveBtn.onclick=()=>window.leaveShop&&window.leaveShop();leaveBtn.textContent=(G&&G.shopPreboss)?'ボス選択に戻る':'次の階層へ進む';}
+  };
+  try{renderShop=window.renderShop;}catch(e){}
+
+  window.rerollShop=function(){
+    const p=ensure(G&&G.player); if(!p)return;
+    const cost=35+p.floor*2;
+    if(p.gold<cost){window.addLog&&addLog('お金が足りない。','l-w');return;}
+    p.gold-=cost; normalizeStock(true); window.renderShop();
+  };
+  try{rerollShop=window.rerollShop;}catch(e){}
+
+  function buyLegacy(it){
+    const p=ensure(G&&G.player); if(!p||!it)return false;
+    if(p.gold<it.c){window.addLog&&addLog('お金が足りない。','l-w');return true;}
+    p.gold-=it.c;
+    if(it.t==='weapon'){p.weaponBonus=Math.max(p.weaponBonus||0,it.b||0);p.weapon='強化武器';}
+    else if(it.t==='armor'){p.armorBonus=Math.max(p.armorBonus||0,it.b||0);p.armor='強化鎧';}
+    else if(it.t==='potion'){p.potions=(p.potions||0)+(it.a||1);}
+    else if(it.t==='heal'){p.hp=p.maxHp;}
+    else if(it.t==='mpfull'){p.mp=p.maxMp;}
+    else if(it.t==='both'){p.hp=p.maxHp;p.mp=p.maxMp;}
+    else return false;
+    window.addLog&&addLog(`${it.n||'品物'}を買った。`,'l-i');
+    return true;
+  }
+  window.buyShopItemV3=function(idx){
+    const stock=normalizeStock(false), it=stock[idx]; if(!it||it.sold)return;
+    const p=ensure(G&&G.player); if(!p)return;
+    if(p.gold<it.c){window.addLog&&addLog('お金が足りない。','l-w');return;}
+    p.gold-=it.c; it.sold=true;
+    try{
+      if(it.t==='equip'){p.inventory.equipment.push(it.eq);addLog(`${it.n}を手に入れた。`,'l-i');}
+      else if(it.t==='skill'){if(typeof upgradeSkill==='function')upgradeSkill(it.target,it.kind);addLog(`${it.n}を読んだ。`,'l-s');}
+      else if(it.t==='orb'||it.t==='orb2'){if(typeof window.applyOrb==='function')window.applyOrb(it.orb||it.orbKind||it.orb);addLog(`${it.n}を装着した。`,'l-s');}
+      else if(it.t==='potion'){p.inventory.potions[it.pid]=(p.inventory.potions[it.pid]||0)+(it.qty||1);addLog(`${it.n}を買った。`,'l-h');}
+      else if(it.t==='key'){p.inventory.keys[it.color]=(p.inventory.keys[it.color]||0)+1;addLog(`${it.color}の鍵を入手。`,'l-i');}
+      else if(it.t==='material'){p.materials[it.mat]=(p.materials[it.mat]||0)+(it.qty||1);addLog('素材を入手。','l-i');}
+      else {p.gold+=it.c; it.sold=false; if(!buyLegacy(it))return;}
+      if(typeof syncEquipmentStats==='function')syncEquipmentStats(p);
+      if(typeof recalcVitals==='function')recalcVitals(p);
+    }catch(e){console.warn('shop buy failed',e);}
+    window.renderShop(); try{renderGame();}catch(e){}
+  };
+  try{buyShopItemV3=window.buyShopItemV3;}catch(e){}
+  window.buyShopItem=function(x){
+    if(typeof x==='number')return window.buyShopItemV3(x);
+    const stock=G&&Array.isArray(G.shopStock)?G.shopStock:[]; const idx=stock.indexOf(x);
+    if(idx>=0)return window.buyShopItemV3(idx);
+    buyLegacy(x); normalizeStock(true); window.renderShop(); try{renderGame();}catch(e){}
+  };
+  try{buyShopItem=window.buyShopItem;}catch(e){}
+
+  window.showShop=function(preboss){
+    addStyle(); ensure(G&&G.player); G.shopPreboss=!!preboss; normalizeStock(true); window.renderShop(); if(typeof go==='function')go('shop');
+  };
+  try{showShop=window.showShop;}catch(e){}
+
+  const oldGo=window.go||((typeof go==='function')?go:null);
+  if(oldGo&&!window.__v30GoPatched){
+    window.__v30GoPatched=true;
+    window.go=function(s){const r=oldGo.apply(this,arguments); if(s==='shop')setTimeout(()=>{try{normalizeStock(false);window.renderShop();}catch(e){}},0); return r;};
+    try{go=window.go;}catch(e){}
+  }
+  addStyle();
+})();
+</script>
