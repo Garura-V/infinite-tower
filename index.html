@@ -1498,8 +1498,7 @@ const __renderInventoryBaseV4=renderInventory;
 renderInventory=function(){__renderInventoryBaseV4();updateQuickActions();};
 const __renderStatsBaseV4=renderStats;
 renderStats=function(){__renderStatsBaseV4();updateQuickActions();};
-
-initTitle();
+/* initTitle deferred to final lightweight controller */
 </script>
 
 
@@ -2361,8 +2360,7 @@ try{
   ENEMIES[3].push({n:'深淵騎士',s:'🧿',hp:180,atk:38,def:20,g:85,x:110},{n:'氷竜',s:'❄️',hp:190,atk:36,def:18,g:90,x:120});
   ENEMIES[4].push({n:'虚無の天使',s:'🪽',hp:260,atk:50,def:25,g:130,x:170},{n:'星喰い',s:'🌌',hp:300,atk:55,def:22,g:150,x:190});
 }catch(e){}
-
-initTitle();
+/* initTitle deferred to final lightweight controller */
 </script>
 
 <script>
@@ -2726,7 +2724,7 @@ initTitle();
   const oldInitTitle=window.initTitle;
   window.initTitle=function(){oldInitTitle&&oldInitTitle();addV5Style();};
   try{if(G&&G.player)ensureV3State(G.player);}catch(e){}
-  initTitle();
+/* initTitle deferred to final lightweight controller */
 })();
 </script>
 
@@ -3091,7 +3089,7 @@ initTitle();
   try{showClear=window.showClear;}catch(e){}
 
   installV6Layout();
-  initTitle();
+/* initTitle deferred to final lightweight controller */
 })();
 </script>
 
@@ -5347,1098 +5345,9 @@ initTitle();
 </script>
 
 
-<script>
-/* === v15: 1021職 / 称号 / 条件解放 / 職業進化 / 200階層後二職選択 === */
-(()=>{
-  const V15_VERSION='v15_1021_titles_evolution_dual';
-  const V15_META_KEY='itrl_meta_v3';
-  const V15_CAT_KEY='itrl_job_category_v14';
-  const V15_SECONDARY_MODE_KEY='itrl_secondary_mode_v15';
-  const BASE_JOB_COUNT_V15=5;
-  const TARGET_JOB_COUNT_V15=1021;
-  const V15_CATS=[
-    {id:'all',label:'すべて',icon:'🌐'},
-    {id:'martial',label:'武術系',icon:'🥊'},
-    {id:'magic',label:'魔法系',icon:'🔮'},
-    {id:'guard',label:'防御/回復系',icon:'🛡️'},
-    {id:'summon',label:'召喚/自然系',icon:'🌿'},
-    {id:'dark',label:'闇/特殊系',icon:'🌑'},
-    {id:'evolution',label:'進化職',icon:'🧬'}
-  ];
-  const V15_RECOMMENDED=['warrior','mage','rogue','paladin','berserker','monk','archer','priest','samurai','ninja','alchemist','summoner'];
-  const CAT_TAG={martial:'戦士',magic:'魔法使い',guard:'パラディン',summon:'召喚士',dark:'ネクロマンサー'};
-  const CAT_ICON={martial:'🥊',magic:'🔮',guard:'🛡️',summon:'🌿',dark:'🌑'};
-  const CAT_ELEM={martial:'闘気',magic:'星',guard:'光',summon:'自然',dark:'闇'};
-  const CAT_LABEL={martial:'武術系',magic:'魔法系',guard:'防御/回復系',summon:'召喚/自然系',dark:'闇/特殊系',evolution:'進化職'};
-  const JP_NUM=['零','壱','弐','参','肆','伍','陸','漆','捌','玖','拾','百','千'];
-  const PREFIX=['見習い','熟練','上級','精鋭','秘伝','古代','深層','無限','星詠み','影渡り','天駆け','竜血','神域','虚空','終焉','黎明','月影','蒼炎','雷鳴','白銀','黒曜','深翠','緋色','霊峰','幻夢','王国','境界','塔喰い','時渡り','絶界'];
-  const SUFFIX={
-    martial:['拳士','剣客','槍兵','弓手','忍び','武僧','闘士','斬撃者','刃舞い','牙狩り','双剣士','戦鬼'],
-    magic:['術師','魔導士','元素師','星術士','雷術師','氷術師','炎術師','時詠み','魔弾士','結界師','呪文使い','賢者'],
-    guard:['守護者','聖騎士','盾士','神官','癒し手','鉄壁兵','番人','白騎士','祈祷師','城塞士','守人','光盾士'],
-    summon:['召喚士','獣使い','森守り','精霊師','式神使い','大地師','風読み','薬草師','霊媒師','竜喚び','自然術士','月獣師'],
-    dark:['呪術師','死霊士','影使い','吸血者','魔王候補','魂狩り','深淵士','幻影師','悪魔使い','闇騎士','冥導士','破滅者']
-  };
-  const BASE_CAT_BY_ID={
-    warrior:'martial',rogue:'martial',berserker:'martial',monk:'martial',archer:'martial',ninja:'martial',samurai:'martial',gunner:'martial',gladiator:'martial',dragoon:'martial',pirate:'martial',fistfighter:'martial',spiritblade:'martial',assassin:'martial',beastmaster:'martial',
-    mage:'magic',elementalist:'magic',pyromancer:'magic',cryomancer:'magic',thundermage:'magic',windmage:'magic',timelord:'magic',stargazer:'magic',chrono:'magic',fortune:'magic',oracle:'magic',alchemist:'magic',inventor:'magic',
-    paladin:'guard',priest:'guard',knight:'guard',sentinel:'guard',lightbringer:'guard',herbalist:'guard',geomancer:'guard',shaman:'guard',
-    summoner:'summon',druid:'summon',diviner:'summon',
-    necro:'dark',darknight:'dark',vampire:'dark',witch:'dark',reaper:'dark',demonlord:'dark',phantom:'dark',shadowlord:'dark',trickster:'dark',juggernaut:'dark'
-  };
-  function escV15(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-  function clampV15(v,a,b){return Math.max(a,Math.min(b,v));}
-  function readMetaV15(){
-    let m={unlocked:BASE_JOB_COUNT_V15,bestFloor:1,titles:['beginner'],activeTitle:'beginner',jobBest:{},kills:0};
-    try{m=Object.assign(m,JSON.parse(localStorage.getItem(V15_META_KEY)||'{}'));}catch(e){}
-    if(!Array.isArray(m.titles))m.titles=['beginner'];
-    if(!m.titles.includes('beginner'))m.titles.unshift('beginner');
-    if(!m.activeTitle||!m.titles.includes(m.activeTitle))m.activeTitle='beginner';
-    if(!m.jobBest||typeof m.jobBest!=='object')m.jobBest={};
-    m.unlocked=Math.max(BASE_JOB_COUNT_V15,Number(m.unlocked)||BASE_JOB_COUNT_V15);
-    m.bestFloor=Math.max(1,Number(m.bestFloor)||1);
-    m.kills=Math.max(0,Number(m.kills)||0);
-    return m;
-  }
-  function saveMetaV15(m){localStorage.setItem(V15_META_KEY,JSON.stringify(m));}
-
-  const TITLE_DEFS_V15=[
-    {id:'beginner',n:'塔の挑戦者',i:'🏰',d:'最初から所持。HP+5',cond:m=>true,apply:p=>{p.maxHp+=5;p.hp+=5;}},
-    {id:'floor_10',n:'十階踏破者',i:'🥉',d:'10階到達。ATK+1 DEF+1',cond:m=>m.bestFloor>=10,apply:p=>{p.atk+=1;p.def+=1;}},
-    {id:'floor_50',n:'五十階の越境者',i:'🥈',d:'50階到達。HP+20',cond:m=>m.bestFloor>=50,apply:p=>{p.maxHp+=20;p.hp+=20;}},
-    {id:'floor_100',n:'百階踏破者',i:'🥇',d:'100階到達。永久SP時代の証。全基礎+2',cond:m=>m.bestFloor>=100,apply:p=>{p.atk+=2;p.def+=2;p.spd+=2;}},
-    {id:'dual_master',n:'二職の開拓者',i:'🧩',d:'200階到達。MP+20、二職選択解禁',cond:m=>m.bestFloor>=200,apply:p=>{p.maxMp+=20;p.mp+=20;}},
-    {id:'floor_300',n:'三百階の怪物',i:'👑',d:'300階到達。ATK+5',cond:m=>m.bestFloor>=300,apply:p=>{p.atk+=5;}},
-    {id:'floor_500',n:'深層王',i:'🌌',d:'500階到達。HP+50 DEF+5',cond:m=>m.bestFloor>=500,apply:p=>{p.maxHp+=50;p.hp+=50;p.def+=5;}},
-    {id:'floor_777',n:'幸運の塔王',i:'🍀',d:'777階到達。LUK+10 クリ率+5%',cond:m=>m.bestFloor>=777,apply:p=>{if(p.stats)p.stats.LUK=(p.stats.LUK||0)+10;p.critRate=(p.critRate||0)+0.05;}},
-    {id:'floor_1000',n:'千階到達者',i:'🌈',d:'1000階到達。全基礎+10',cond:m=>m.bestFloor>=1000,apply:p=>{p.atk+=10;p.def+=10;p.spd+=10;p.maxHp+=80;p.hp+=80;p.maxMp+=40;p.mp+=40;}},
-    {id:'killer_100',n:'百討伐',i:'⚔️',d:'敵100体撃破。ATK+3',cond:m=>m.kills>=100,apply:p=>{p.atk+=3;}},
-    {id:'killer_1000',n:'千討伐',i:'🩸',d:'敵1000体撃破。物理+10%',cond:m=>m.kills>=1000,apply:p=>{p.physBonus=(p.physBonus||1)*1.1;}},
-    {id:'collector_100',n:'百職蒐集家',i:'📚',d:'100職解放。MP+30',cond:m=>unlockedJobsV15(true).length>=100,apply:p=>{p.maxMp+=30;p.mp+=30;}},
-    {id:'collector_500',n:'五百職蒐集家',i:'🧠',d:'500職解放。魔法+10%',cond:m=>unlockedJobsV15(true).length>=500,apply:p=>{p.magBonus=(p.magBonus||1)*1.1;}},
-    {id:'all_jobs',n:'千二十一職の王',i:'👑',d:'1021職解放。伝説級の証',cond:m=>unlockedJobsV15(true).length>=TARGET_JOB_COUNT_V15,apply:p=>{p.atk+=12;p.def+=12;p.spd+=12;p.maxHp+=120;p.hp+=120;}}
-  ];
-  function titleByIdV15(id){return TITLE_DEFS_V15.find(t=>t.id===id)||TITLE_DEFS_V15[0];}
-  function refreshTitlesV15(silent=true){
-    const m=readMetaV15();let got=[];
-    TITLE_DEFS_V15.forEach(t=>{try{if(t.cond(m)&&!m.titles.includes(t.id)){m.titles.push(t.id);got.push(t);}}catch(e){}});
-    saveMetaV15(m);
-    if(got.length&&!silent&&typeof addLog==='function')got.forEach(t=>addLog(`🏷️ 称号獲得：${t.i}${t.n}`,'l-i'));
-    return {meta:m,newTitles:got};
-  }
-  function hasTitleV15(id){const m=readMetaV15();return (m.titles||[]).includes(id);}
-  function activeTitleV15(){return titleByIdV15(readMetaV15().activeTitle);}
-  function applyTitleBonusV15(p){
-    const t=activeTitleV15();
-    try{t.apply&&t.apply(p);}catch(e){}
-    p.titleId=t.id;p.titleName=t.n;p.titleIcon=t.i;
-  }
-
-  function jobCatV15(j){
-    if(j&&j.v15&&j.v15.kind==='evolution')return 'evolution';
-    if(j&&j.v15&&j.v15.cat)return j.v15.cat;
-    if(j&&BASE_CAT_BY_ID[j.id])return BASE_CAT_BY_ID[j.id];
-    const t=(j&&j.t)||'';
-    if(['戦士','盗賊','忍者','侍','バーサーカー','モンク','アーチャー'].includes(t))return 'martial';
-    if(['魔法使い','錬金術師','占い師'].includes(t))return 'magic';
-    if(['パラディン','聖職者'].includes(t))return 'guard';
-    if(['召喚士','ドルイド','シャーマン'].includes(t))return 'summon';
-    return 'dark';
-  }
-  function makeSkillV15(cat,tier,nameSeed){
-    const elem=CAT_ELEM[cat]||'無';
-    const cost=8+tier*2;
-    if(cat==='martial')return {
-      phys:{n:`${nameSeed}連撃`,d:`ATK×${(1.6+tier*.08).toFixed(1)}`,cost,fn:tier%3===0?'multi':'physMul',mul:1.6+tier*.08,hits:2+(tier%4)},
-      mag:{n:`${nameSeed}闘気波`,d:`${elem}属性ATK×${(1.5+tier*.06).toFixed(1)}`,cost:cost+6,fn:'magAtk',mul:1.5+tier*.06,elem},
-      ult:{n:`奥義・${nameSeed}`,d:`高倍率物理攻撃`,cost:24+tier*3,cd:5,fn:tier%2?'pierce':'multi',mul:2.8+tier*.12,hits:5+(tier%5),fullPierce:tier%5===0}
-    };
-    if(cat==='magic')return {
-      phys:{n:`${nameSeed}魔弾`,d:`ATK×1.3`,cost:cost,fn:'physMul',mul:1.3},
-      mag:{n:`${nameSeed}魔法`,d:`${elem}属性ATK×${(2.2+tier*.09).toFixed(1)}`,cost:cost+10,fn:'magAtk',mul:2.2+tier*.09,elem},
-      ult:{n:`禁術・${nameSeed}`,d:`${elem}属性大ダメージ`,cost:34+tier*3,cd:6,fn:'magAtk',mul:4.0+tier*.12,elem}
-    };
-    if(cat==='guard')return {
-      phys:{n:`${nameSeed}盾撃`,d:`DEF参照ダメージ`,cost:cost,fn:tier%2?'defAtk':'holyStrike'},
-      mag:{n:`${nameSeed}祈り`,d:`HP回復`,cost:cost+10,fn:'healPct',pct:.25+Math.min(.25,tier*.01)},
-      ult:{n:`聖域・${nameSeed}`,d:`回復か防御強化`,cost:32+tier*2,cd:7,fn:tier%2?'revive':'fortressUlt'}
-    };
-    if(cat==='summon')return {
-      phys:{n:`${nameSeed}精霊打ち`,d:`ATK×${(1.5+tier*.05).toFixed(1)}`,cost,fn:'physMul',mul:1.5+tier*.05},
-      mag:{n:`${nameSeed}召喚`,d:`召喚攻撃`,cost:cost+10,fn:tier%2?'summonUlt':'magAtk',mul:2.4+tier*.08,elem},
-      ult:{n:`大召喚・${nameSeed}`,d:`自然の力を解放`,cost:36+tier*2,cd:7,fn:tier%2?'summonUlt':'natureFury'}
-    };
-    return {
-      phys:{n:`${nameSeed}暗撃`,d:`吸収攻撃`,cost,fn:tier%2?'darkStrike':'physMul',mul:1.8+tier*.07},
-      mag:{n:`${nameSeed}呪法`,d:`${elem}属性ATK×${(2.0+tier*.08).toFixed(1)}`,cost:cost+10,fn:'magAtk',mul:2.0+tier*.08,elem},
-      ult:{n:`禁呪・${nameSeed}`,d:`HP割合/即死系`,cost:34+tier*3,cd:7,fn:tier%3===0?'execute':(tier%3===1?'hpPercent':'doomCurse'),pct:.25+Math.min(.35,tier*.01),threshold:.25,mul:3.8+tier*.1}
-    };
-  }
-  function makePassV15(cat,tier,nameSeed){
-    const a=1+Math.floor(tier/4);const b=1+Math.floor(tier/5);
-    if(cat==='martial')return [{n:`${nameSeed}の型`,d:`ATK+${a} SPD+${b}`,apply:p=>{p.atk+=a;p.spd+=b;}},{n:'鍛錬',d:'物理攻撃少し強化',apply:p=>{p.physBonus=(p.physBonus||1)*(1+Math.min(.2,tier*.006));}}];
-    if(cat==='magic')return [{n:`${nameSeed}の魔力`,d:`MP+${10+a*3}`,apply:p=>{p.maxMp+=10+a*3;p.mp+=10+a*3;}},{n:'魔法増幅',d:'魔法攻撃少し強化',apply:p=>{p.magBonus=(p.magBonus||1)*(1+Math.min(.22,tier*.006));}}];
-    if(cat==='guard')return [{n:`${nameSeed}の守り`,d:`HP+${15+a*4} DEF+${b}`,apply:p=>{p.maxHp+=15+a*4;p.hp+=15+a*4;p.def+=b;}},{n:'堅守',d:'被ダメ軽減',apply:p=>{p.dmgReduce=Math.max(p.dmgReduce||0,Math.min(.18,tier*.004));}}];
-    if(cat==='summon')return [{n:`${nameSeed}の加護`,d:`HP/MP自動回復`,apply:p=>{p.hpRegen=(p.hpRegen||0)+Math.max(1,b);p.mpRegen=(p.mpRegen||0)+Math.max(1,Math.floor(b/2));}},{n:'自然共鳴',d:'最大HPとMP増加',apply:p=>{p.maxHp+=10+a*2;p.hp+=10+a*2;p.maxMp+=6+a*2;p.mp+=6+a*2;}}];
-    return [{n:`${nameSeed}の呪印`,d:`ATK+${a} クリ率+${Math.min(20,2+tier)}%`,apply:p=>{p.atk+=a;p.critRate=(p.critRate||0)+(Math.min(20,2+tier)/100);}},{n:'闇の吸収',d:'HP吸収少し強化',apply:p=>{p.lifeSteal=Math.max(p.lifeSteal||0,Math.min(.25,.03+tier*.003));}}];
-  }
-  function makeGeneratedJobV15(num,cat,tier,kind,opts={}){
-    const pre=PREFIX[num%PREFIX.length];const suf=SUFFIX[cat][Math.floor(num/PREFIX.length)%SUFFIX[cat].length];
-    const nameSeed=`${pre}${suf}${JP_NUM[num%JP_NUM.length]||num}`;
-    const sk=makeSkillV15(cat,tier,pre);
-    const hpBase={martial:95,magic:70,guard:115,summon:85,dark:88}[cat]||90;
-    const mpBase={martial:42,magic:92,guard:60,summon:78,dark:70}[cat]||60;
-    const atkBase={martial:17,magic:10,guard:12,summon:12,dark:16}[cat]||12;
-    const defBase={martial:8,magic:5,guard:15,summon:8,dark:7}[cat]||8;
-    const spdBase={martial:14,magic:9,guard:7,summon:10,dark:11}[cat]||10;
-    return {
-      id:opts.id||`gen_${num}_${cat}`,
-      n:opts.name||nameSeed,
-      i:opts.icon||CAT_ICON[cat]||'✨',
-      t:opts.tag||CAT_TAG[cat]||'戦士',
-      hp:hpBase+tier*3,mp:mpBase+tier*3,atk:atkBase+Math.floor(tier*.55),def:defBase+Math.floor(tier*.45),spd:spdBase+Math.floor(tier*.35),
-      pass:opts.pass||makePassV15(cat,tier,pre),
-      phys:opts.phys||sk.phys,mag:opts.mag||sk.mag,ult:opts.ult||sk.ult,
-      v15:Object.assign({generated:true,cat,tier,kind:kind||'condition',floorReq:20+tier*5},opts.v15||{})
-    };
-  }
-  function generateJobsV15(){
-    if(!Array.isArray(JOBS))return;
-    if(JOBS.some(j=>j&&j.v15&&j.v15.version===V15_VERSION))return;
-    const base=JOBS.slice(0,BASE_JOB_COUNT_V15);
-    let num=0;
-    base.forEach((bj,idx)=>{
-      const cat=jobCatV15(bj);const req=50+(idx%5)*10;const tier=8+Math.floor(idx/5);
-      const sk=makeSkillV15(cat,tier,bj.n);
-      JOBS.push({
-        id:`evo_${bj.id}`,
-        n:`${bj.n}・進化`,i:'🧬',t:bj.t,
-        hp:Math.round(bj.hp*1.28)+20,mp:Math.round(bj.mp*1.22)+12,atk:bj.atk+6,def:bj.def+5,spd:bj.spd+3,
-        pass:[{n:`${bj.n}の極意`,d:`${bj.n}で${req}階到達した証。全基礎+3`,apply:p=>{p.atk+=3;p.def+=3;p.spd+=3;p.maxHp+=20;p.hp+=20;}},{n:'進化適性',d:'スキル消費MP-10%',apply:p=>{p.mpDiscount=(p.mpDiscount||1)*0.9;}}],
-        phys:sk.phys,mag:sk.mag,ult:sk.ult,
-        v15:{version:V15_VERSION,generated:true,kind:'evolution',cat,evoFrom:bj.id,evoName:bj.n,floorReq:req,tier}
-      });num++;
-    });
-    base.forEach((bj,idx)=>{
-      const cat=jobCatV15(bj);const req=120+(idx%5)*15;const tier=18+Math.floor(idx/4);
-      const sk=makeSkillV15(cat,tier,`真${bj.n}`);
-      JOBS.push({
-        id:`true_${bj.id}`,
-        n:`真・${bj.n}`,i:'🌟',t:bj.t,
-        hp:Math.round(bj.hp*1.55)+40,mp:Math.round(bj.mp*1.45)+25,atk:bj.atk+10,def:bj.def+8,spd:bj.spd+5,
-        pass:[{n:`真なる${bj.n}`,d:`${bj.n}で${req}階到達した証。全基礎大幅強化`,apply:p=>{p.atk+=6;p.def+=6;p.spd+=4;p.maxHp+=45;p.hp+=45;p.maxMp+=25;p.mp+=25;}},{n:'二段進化',d:'クリ率+10%、回避+5%',apply:p=>{p.critRate=(p.critRate||0)+.1;p.evade=(p.evade||0)+.05;}}],
-        phys:sk.phys,mag:sk.mag,ult:sk.ult,
-        v15:{version:V15_VERSION,generated:true,kind:'evolution',cat,evoFrom:bj.id,evoName:bj.n,floorReq:req,titleReq:idx%3===0?'floor_100':null,tier}
-      });num++;
-    });
-    const cats=['martial','magic','guard','summon','dark'];
-    while(JOBS.length<TARGET_JOB_COUNT_V15){
-      const idx=JOBS.length-BASE_JOB_COUNT_V15;
-      const cat=cats[idx%cats.length];
-      const tier=1+Math.floor(idx/6);
-      const floorReq=20+Math.floor(idx/7)*5;
-      const titleReq=(idx>260&&idx%97===0)?'floor_200':(idx>500&&idx%89===0?'floor_500':(idx>820&&idx%77===0?'floor_777':null));
-      const job=makeGeneratedJobV15(idx,cat,tier,'condition',{v15:{version:V15_VERSION,floorReq,titleReq}});
-      JOBS.push(job);
-    }
-    if(JOBS.length>TARGET_JOB_COUNT_V15)JOBS.length=TARGET_JOB_COUNT_V15;
-  }
-  generateJobsV15();
-  try{const m=readMetaV15();if(m.unlocked<BASE_JOB_COUNT_V15){m.unlocked=BASE_JOB_COUNT_V15;saveMetaV15(m);}}catch(e){}
-
-  function conditionTextV15(j){
-    if(!j||!j.v15||JOBS.indexOf(j)<BASE_JOB_COUNT_V15)return '初期5職。最初から解放';
-    const v=j.v15;let parts=[];
-    if(v.kind==='evolution')parts.push(`${v.evoName||'元職'}で${v.floorReq||50}階到達`);
-    else parts.push(`${v.floorReq||20}階到達`);
-    if(v.titleReq)parts.push(`称号「${titleByIdV15(v.titleReq).n}」所持`);
-    return parts.join(' ＋ ');
-  }
-  function isJobUnlockedV15(j,idxOverride){
-    const idx=idxOverride!==undefined?idxOverride:JOBS.indexOf(j);
-    if(idx<BASE_JOB_COUNT_V15)return true;
-    const v=j&&j.v15;if(!v)return false;
-    const m=readMetaV15();
-    if(v.titleReq&&!m.titles.includes(v.titleReq))return false;
-    if(v.kind==='evolution')return (m.jobBest&&Number(m.jobBest[v.evoFrom])||0)>=(v.floorReq||50);
-    return m.bestFloor>=(v.floorReq||20);
-  }
-  function unlockedJobsV15(skipRefresh=false){
-    if(!skipRefresh)try{refreshTitlesV15(true);}catch(e){}
-    return JOBS.map((j,i)=>Object.assign({idx:i,cat:jobCatV15(j)},j)).filter(j=>isJobUnlockedV15(j,j.idx));
-  }
-  window.unlockedJobsV15=unlockedJobsV15;
-  window.isJobUnlockedV15=(id)=>{const idx=JOBS.findIndex(j=>j.id===id);return idx>=0&&isJobUnlockedV15(JOBS[idx],idx);};
-
-  function dualUnlockedV15(){return readMetaV15().bestFloor>=200||hasTitleV15('dual_master');}
-  function secondaryModeV15(){return localStorage.getItem(V15_SECONDARY_MODE_KEY)==='1';}
-  function setSecondaryModeV15(v){localStorage.setItem(V15_SECONDARY_MODE_KEY,v?'1':'0');renderDualControlsV15();}
-  function mobileV15(){try{return window.matchMedia&&window.matchMedia('(max-width:820px)').matches;}catch(e){return false;}}
-  function simpleV15(){const v=localStorage.getItem('itrl_simple_ui_v12');if(v==='1')return true;if(v==='0')return false;return mobileV15();}
-  function currentCatV15(){const c=localStorage.getItem(V15_CAT_KEY)||'all';return V15_CATS.some(x=>x.id===c)?c:'all';}
-  function renderJobCategoryButtonsV15(){
-    const wrap=document.getElementById('job-filter-btns');if(!wrap)return;
-    const unlocked=unlockedJobsV15();const cur=currentCatV15();wrap.innerHTML='';
-    V15_CATS.forEach(cat=>{
-      const count=cat.id==='all'?unlocked.length:unlocked.filter(j=>j.cat===cat.id).length;
-      if(cat.id!=='all'&&count<=0)return;
-      const b=document.createElement('button');b.className='tab'+(cur===cat.id?' act':'');b.type='button';b.textContent=`${cat.icon} ${cat.label} ${count}`;
-      b.onclick=()=>{localStorage.setItem(V15_CAT_KEY,cat.id);renderJobGrid(document.getElementById('job-search')?.value||'');};wrap.appendChild(b);
-    });
-  }
-  function renderJobGridV15(q){
-    const grid=document.getElementById('job-grid');if(!grid)return;
-    refreshTitlesV15(true);
-    const query=String(q||'');const lc=query.toLowerCase();const cur=currentCatV15();
-    let unlocked=unlockedJobsV15(true);
-    let jobs=unlocked.filter(j=>cur==='all'||j.cat===cur);
-    jobs=jobs.filter(j=>j.n.includes(query)||j.t.includes(query)||lc===''||j.id.includes(lc)||(CAT_LABEL[j.cat]||'').includes(query));
-    const simple=simpleV15();const showAll=localStorage.getItem('itrl_show_all_jobs_v12')==='1';
-    if(simple&&!query&&!showAll&&cur==='all'){
-      const rec=new Set(V15_RECOMMENDED);const recommended=jobs.filter(j=>rec.has(j.id)).sort((a,b)=>V15_RECOMMENDED.indexOf(a.id)-V15_RECOMMENDED.indexOf(b.id));
-      jobs=recommended.length?recommended:jobs.slice(0,12);
-    }
-    const count=document.getElementById('job-count');
-    if(count){const totalInCat=cur==='all'?unlocked.length:unlocked.filter(j=>j.cat===cur).length;const suffix=(simple&&!showAll&&!query&&cur==='all')?'・おすすめ':'';count.textContent=`(${jobs.length}/${totalInCat}職表示 / 全${JOBS.length}職${suffix})`;}
-    grid.innerHTML='';renderJobCategoryButtonsV15();renderDualControlsV15();renderTitlePanelV15();
-    if(!jobs.length){const empty=document.createElement('div');empty.className='jcard';empty.style.cursor='default';empty.innerHTML='<div class="ji">🔒</div><div class="jn">表示できる職業なし</div><div class="jt">条件達成で新職業が出現</div>';grid.appendChild(empty);}
-    jobs.forEach(j=>{
-      const d=document.createElement('div');d.className='jcard';d.id='jc-'+j.id;
-      const meta=j.v15?`<span class="v15-job-meta">${j.v15.kind==='evolution'?'🧬進化':'🔓条件'} ${j.v15.floorReq||''}F</span>`:'';
-      d.innerHTML=`<div class="ji">${escV15(j.i)}</div><div class="jn">${escV15(j.n)}</div><div class="jt">${escV15((V15_CATS.find(c=>c.id===j.cat)||{}).icon||'')}${escV15(CAT_LABEL[j.cat]||j.t)} / ${escV15(j.t)}</div>${meta}`;
-      d.onclick=()=>selectJob(j.id);grid.appendChild(d);
-    });
-    if(simple&&!query&&!showAll&&cur==='all'&&unlocked.length>jobs.length){
-      const more=document.createElement('div');more.className='jcard v12-more-card';more.innerHTML=`<div class="ji">➕</div><div class="jn">解放済みを全部見る</div><div class="jt">あと${unlocked.length-jobs.length}職を表示</div>`;more.onclick=()=>{localStorage.setItem('itrl_show_all_jobs_v12','1');renderJobGrid('');};grid.appendChild(more);
-    }
-  }
-  window.renderJobGrid=renderJobGridV15;try{renderJobGrid=window.renderJobGrid;}catch(e){}
-  window.filterJobs=function(){renderJobGrid(document.getElementById('job-search')?.value||'');};try{filterJobs=window.filterJobs;}catch(e){}
-
-  function renderDualControlsV15(){
-    const btnRow=document.querySelector('#scr-title > div[style*="margin-top:10px"]');if(!btnRow)return;
-    let panel=document.getElementById('v15-dual-panel');
-    if(!panel){panel=document.createElement('div');panel.id='v15-dual-panel';panel.className='card';panel.style.marginTop='10px';btnRow.parentNode.insertBefore(panel,btnRow);}
-    const m=readMetaV15();
-    if(!dualUnlockedV15()){
-      panel.innerHTML=`<b>🧩 二職選択</b><div class="muted" style="margin-top:4px">200階層突破で解放。現在最高：${m.bestFloor}階</div>`;return;
-    }
-    const main=JOBS.find(j=>j.id===G.selectedJob);const sub=JOBS.find(j=>j.id===G.selectedSubJob);
-    panel.innerHTML=`<b>🧩 二職選択：解放済み</b><div class="muted" style="margin-top:4px">主職：${main?escV15(main.i+' '+main.n):'未選択'} / 副職：${sub?escV15(sub.i+' '+sub.n):'なし'}</div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">
-        <button class="btn tiny-btn ${secondaryModeV15()?'btn-p':''}" onclick="toggleSecondaryModeV15()">副職選択モード：${secondaryModeV15()?'ON':'OFF'}</button>
-        <button class="btn tiny-btn" onclick="clearSecondaryJobV15()" ${sub?'':'disabled'}>副職を外す</button>
-      </div>`;
-  }
-  window.toggleSecondaryModeV15=function(){setSecondaryModeV15(!secondaryModeV15());};
-  window.clearSecondaryJobV15=function(){G.selectedSubJob=null;setSecondaryModeV15(false);renderDualControlsV15();};
-
-  const oldSelectJobV15=window.selectJob||((typeof selectJob==='function')?selectJob:null);
-  window.selectJob=function(id){
-    const idx=JOBS.findIndex(j=>j.id===id);const j=JOBS[idx];
-    if(!j||!isJobUnlockedV15(j,idx)){
-      const det=document.getElementById('job-detail');if(det){det.style.display='block';det.innerHTML=`<div class="card"><b>🔒 未解放</b><div class="muted" style="margin-top:6px">${escV15(j?conditionTextV15(j):'条件不明')}</div></div>`;}
-      const st=document.getElementById('start-btn');if(st)st.disabled=true;return;
-    }
-    if(dualUnlockedV15()&&secondaryModeV15()){
-      if(G.selectedJob===id){
-        const det=document.getElementById('job-detail');if(det){det.style.display='block';det.innerHTML='<div class="card"><b>同じ職業は副職にできない</b><div class="muted" style="margin-top:6px">別の職業を選んでね。</div></div>';}
-        return;
-      }
-      G.selectedSubJob=id;setSecondaryModeV15(false);renderDualControlsV15();
-      const det=document.getElementById('job-detail');if(det){det.style.display='block';det.innerHTML=`<div class="card"><b>🧩 副職に設定：${escV15(j.i)} ${escV15(j.n)}</b><div class="muted" style="margin-top:6px">主職を選んで冒険開始すると、副職ステータス35%＋副職スキルが使える。</div></div>`;}
-      return;
-    }
-    if(oldSelectJobV15)oldSelectJobV15(id);else{G.selectedJob=id;const st=document.getElementById('start-btn');if(st)st.disabled=false;}
-    const det=document.getElementById('job-detail');
-    if(det){
-      const cat=jobCatV15(j);const baseCard=det.querySelector('.card')||det;
-      const extra=document.createElement('div');extra.className='v15-job-extra';
-      const evoLine=(idx<BASE_JOB_COUNT_V15)?findEvolutionLineV15(j):'';
-      extra.innerHTML=`<div class="trait-row"><span class="trait-chip">${escV15((V15_CATS.find(c=>c.id===cat)||{}).icon||'')} ${escV15(CAT_LABEL[cat]||j.t)}</span>${j.v15?`<span class="trait-chip">条件：${escV15(conditionTextV15(j))}</span>`:''}</div>${evoLine}${dualUnlockedV15()?`<div style="margin-top:6px"><button class="btn tiny-btn" onclick="setPickedAsSecondaryV15('${escV15(j.id)}')" ${G.selectedJob===j.id?'disabled title="主職と同じ職は不可"':''}>この職を副職にする</button></div>`:''}`;
-      baseCard.appendChild(extra);
-    }
-    renderDualControlsV15();
-  };
-  try{selectJob=window.selectJob;}catch(e){}
-  window.setPickedAsSecondaryV15=function(id){
-    const idx=JOBS.findIndex(j=>j.id===id);if(idx<0||!isJobUnlockedV15(JOBS[idx],idx)||G.selectedJob===id)return;
-    G.selectedSubJob=id;setSecondaryModeV15(false);renderDualControlsV15();
-  };
-  function findEvolutionLineV15(j){
-    const m=readMetaV15();const best=(m.jobBest&&m.jobBest[j.id])||0;
-    const evos=JOBS.filter(x=>x.v15&&x.v15.kind==='evolution'&&x.v15.evoFrom===j.id).slice(0,2);
-    if(!evos.length)return '';
-    return `<div class="surf" style="font-size:11px;margin-top:6px"><b>🧬 職業進化</b><br>${evos.map(e=>`${escV15(e.n)}：${best>=e.v15.floorReq?'✅解放済み':`🔒 ${e.v15.floorReq}階必要 / 現在${best}階`}`).join('<br>')}</div>`;
-  }
-
-  function renderTitlePanelV15(){
-    const search=document.getElementById('job-search');if(!search)return;
-    let panel=document.getElementById('v15-title-panel');
-    if(!panel){panel=document.createElement('div');panel.id='v15-title-panel';panel.className='card';panel.style.margin='8px 0';search.parentNode.insertBefore(panel,search);}
-    const res=refreshTitlesV15(true);const m=readMetaV15();const active=titleByIdV15(m.activeTitle);
-    const unlocked=TITLE_DEFS_V15.filter(t=>m.titles.includes(t.id));
-    panel.innerHTML=`<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;flex-wrap:wrap"><div><b>🏷️ 称号</b> <span class="trait-chip">${escV15(active.i)} ${escV15(active.n)}</span></div><div class="muted">${unlocked.length}/${TITLE_DEFS_V15.length}個</div></div>
-      <div class="muted" style="margin-top:4px">${escV15(active.d)}</div>
-      <div class="v15-title-list" style="display:flex;gap:4px;overflow-x:auto;margin-top:6px;padding-bottom:2px">${unlocked.map(t=>`<button class="btn tiny-btn ${t.id===active.id?'btn-p':''}" onclick="setActiveTitleV15('${t.id}')">${escV15(t.i)} ${escV15(t.n)}</button>`).join('')}</div>`;
-  }
-  window.setActiveTitleV15=function(id){const m=readMetaV15();if(m.titles.includes(id)){m.activeTitle=id;saveMetaV15(m);renderTitlePanelV15();}};
-
-  const oldStartGameV15=window.startGame||((typeof startGame==='function')?startGame:null);
-  window.startGame=function(){
-    if(!G||!G.selectedJob){return oldStartGameV15&&oldStartGameV15();}
-    const mainIdx=JOBS.findIndex(j=>j.id===G.selectedJob);
-    if(mainIdx<0||!isJobUnlockedV15(JOBS[mainIdx],mainIdx)){alert('この職業はまだ未解放です');return;}
-    if(G.selectedSubJob){const subIdx=JOBS.findIndex(j=>j.id===G.selectedSubJob);if(subIdx<0||!dualUnlockedV15()||!isJobUnlockedV15(JOBS[subIdx],subIdx)||G.selectedSubJob===G.selectedJob)G.selectedSubJob=null;}
-    oldStartGameV15&&oldStartGameV15();
-    const p=G&&G.player;if(!p)return;
-    applyTitleBonusV15(p);
-    const sub=G.selectedSubJob?JOBS.find(j=>j.id===G.selectedSubJob):null;
-    if(sub&&dualUnlockedV15())applySecondaryJobV15(p,sub);
-    try{if(typeof recalcVitals==='function')recalcVitals(p);}catch(e){}
-    try{if(typeof renderGame==='function')renderGame();}catch(e){}
-  };
-  try{startGame=window.startGame;}catch(e){}
-  function cloneSkillV15(sk){try{return JSON.parse(JSON.stringify(sk));}catch(e){return Object.assign({},sk||{});}}
-  function applySecondaryJobV15(p,sub){
-    p.secondaryJobId=sub.id;p.secondaryJob=sub.n;p.secondaryIcon=sub.i;
-    p.job=`${p.job} × ${sub.n}`;
-    p.maxHp+=Math.round((sub.hp||0)*0.35);p.hp+=Math.round((sub.hp||0)*0.35);
-    p.maxMp+=Math.round((sub.mp||0)*0.35);p.mp+=Math.round((sub.mp||0)*0.35);
-    p.atk+=Math.round((sub.atk||0)*0.35);p.def+=Math.round((sub.def||0)*0.35);p.spd+=Math.round((sub.spd||0)*0.35);
-    p.subPhys=cloneSkillV15(sub.phys);p.subMag=cloneSkillV15(sub.mag);p.subUlt=cloneSkillV15(sub.ult);p.subUltCd=0;
-    try{(sub.pass||[]).slice(0,1).forEach(pa=>pa.apply&&pa.apply(p));}catch(e){}
-  }
-  window.useSecondaryJobSkillV15=function(type){
-    const p=G&&G.player;if(!p||!G.enemy)return;
-    if(!p.secondaryJobId){try{addLog('副職がない！','l-w');}catch(e){}return;}
-    const saved={phys:p.phys,mag:p.mag,ult:p.ult,ultCd:p.ultCd};
-    try{
-      if(type==='phys')p.phys=p.subPhys;
-      else if(type==='mag')p.mag=p.subMag;
-      else{p.ult=p.subUlt;p.ultCd=p.subUltCd||0;}
-      if(typeof useSkill==='function')useSkill(type);
-      if(type==='ult')p.subUltCd=p.ultCd||0;
-    }finally{
-      p.phys=saved.phys;p.mag=saved.mag;p.ult=saved.ult;p.ultCd=saved.ultCd;
-    }
-  };
-  const oldEnemyTurnV15=window.enemyTurn||((typeof enemyTurn==='function')?enemyTurn:null);
-  window.enemyTurn=function(){const p=G&&G.player;if(p&&p.subUltCd>0)p.subUltCd=Math.max(0,p.subUltCd-1);return oldEnemyTurnV15&&oldEnemyTurnV15();};
-  try{enemyTurn=window.enemyTurn;}catch(e){}
-
-  const oldRenderGameV15=window.renderGame||((typeof renderGame==='function')?renderGame:null);
-  window.renderGame=function(){
-    oldRenderGameV15&&oldRenderGameV15();
-    const p=G&&G.player;if(!p)return;
-    const header=document.getElementById('p-header');
-    if(header&&p.titleName&&!document.getElementById('v15-title-chip-game'))header.insertAdjacentHTML('beforeend',` <span id="v15-title-chip-game" class="trait-chip">${escV15(p.titleIcon||'🏷️')} ${escV15(p.titleName)}</span>`);
-    const list=document.getElementById('skill-list');
-    if(list&&p.secondaryJobId&&!document.getElementById('v15-sub-skills')){
-      const box=document.createElement('div');box.id='v15-sub-skills';box.className='skill-row';box.style.marginTop='5px';
-      box.innerHTML=`<div class="muted" style="font-weight:500">副職スキル：${escV15(p.secondaryIcon||'🧩')} ${escV15(p.secondaryJob||'')}</div>
-        <button class="sk-btn" onclick="useSecondaryJobSkillV15('phys')"><span>副:${escV15(p.subPhys?.n||'物理')}</span><span class="sk-ct">MP:${Math.round((p.subPhys?.cost||0)*(p.mpDiscount||1))}</span></button>
-        <button class="sk-btn" onclick="useSecondaryJobSkillV15('mag')"><span>副:${escV15(p.subMag?.n||'魔法')}</span><span class="sk-ct">MP:${Math.round((p.subMag?.cost||0)*(p.mpDiscount||1))}</span></button>
-        <button class="sk-btn" onclick="useSecondaryJobSkillV15('ult')"><span>副:${escV15(p.subUlt?.n||'ULT')}</span><span class="sk-ct">MP:${Math.round((p.subUlt?.cost||0)*(p.mpDiscount||1))} CD:${p.subUltCd||0}</span></button>`;
-      list.appendChild(box);
-    }else if(list&&p.secondaryJobId){
-      const box=document.getElementById('v15-sub-skills');if(box){
-        const btns=box.querySelectorAll('button');
-        if(btns[0])btns[0].disabled=(p.mp<Math.round((p.subPhys?.cost||0)*(p.mpDiscount||1)));
-        if(btns[1])btns[1].disabled=(p.mp<Math.round((p.subMag?.cost||0)*(p.mpDiscount||1)));
-        if(btns[2])btns[2].disabled=(p.mp<Math.round((p.subUlt?.cost||0)*(p.mpDiscount||1)))||(p.subUltCd||0)>0;
-      }
-    }
-  };
-  try{renderGame=window.renderGame;}catch(e){}
-
-  function recordRunProgressV15(){
-    const p=G&&G.player;if(!p)return;
-    const m=readMetaV15();
-    m.bestFloor=Math.max(m.bestFloor,Number(p.floor)||1);
-    if(p.jobId)m.jobBest[p.jobId]=Math.max(Number(m.jobBest[p.jobId])||0,Number(p.floor)||1);
-    if(p.secondaryJobId)m.jobBest[p.secondaryJobId]=Math.max(Number(m.jobBest[p.secondaryJobId])||0,Number(p.floor)||1);
-    saveMetaV15(m);refreshTitlesV15(false);
-  }
-  const oldKillEnemyV15=window.killEnemy||((typeof killEnemy==='function')?killEnemy:null);
-  window.killEnemy=function(){const m=readMetaV15();m.kills=(m.kills||0)+1;saveMetaV15(m);return oldKillEnemyV15&&oldKillEnemyV15();};
-  try{killEnemy=window.killEnemy;}catch(e){}
-  const oldShowClearV15=window.showClear||((typeof showClear==='function')?showClear:null);
-  window.showClear=function(){try{recordRunProgressV15();}catch(e){};return oldShowClearV15&&oldShowClearV15.apply(this,arguments);};
-  try{showClear=window.showClear;}catch(e){}
-  const oldGameOverV15=window.gameOver||((typeof gameOver==='function')?gameOver:null);
-  window.gameOver=function(){try{recordRunProgressV15();}catch(e){};return oldGameOverV15&&oldGameOverV15.apply(this,arguments);};
-  try{gameOver=window.gameOver;}catch(e){}
-
-  function addStyleV15(){
-    if(document.getElementById('v15-style'))return;
-    const st=document.createElement('style');st.id='v15-style';st.textContent=`
-      .v15-job-meta{display:inline-block;margin-top:3px;font-size:10px;color:#854F0B;background:#FAEEDA;border-radius:99px;padding:1px 6px}
-      #v15-title-panel .tiny-btn,#v15-dual-panel .tiny-btn{font-size:10px;padding:4px 7px}
-      #v15-sub-skills{border-top:0.5px solid var(--color-border-tertiary);padding-top:5px}
-      @media(max-width:820px){#v15-title-panel,#v15-dual-panel{font-size:12px}.v15-title-list{max-width:100%}.job-grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}}
-    `;document.head.appendChild(st);
-  }
-  const oldInitTitleV15=window.initTitle||((typeof initTitle==='function')?initTitle:null);
-  window.initTitle=function(){
-    oldInitTitleV15&&oldInitTitleV15();
-    try{
-      addStyleV15();refreshTitlesV15(true);
-      const title=document.querySelector('#scr-title h2');if(title)title.textContent='🏰 無限の塔 v15';
-      const note=document.getElementById('v12-title-note');if(note)note.innerHTML=`📱 <b>v15</b>：全${JOBS.length}職。初期50職＋条件解放職、称号、職業進化、200階突破後の二職選択を追加。`;
-      renderTitlePanelV15();renderDualControlsV15();renderJobGrid(document.getElementById('job-search')?.value||'');
-    }catch(e){console.warn('v15 init error',e);}
-  };
-  try{initTitle=window.initTitle;}catch(e){}
-
-  try{addStyleV15();refreshTitlesV15(true);const title=document.querySelector('#scr-title h2');if(title)title.textContent='🏰 無限の塔 v15';renderTitlePanelV15();renderDualControlsV15();renderJobGrid(document.getElementById('job-search')?.value||'');}catch(e){}
-})();
-</script>
-
-<script>
-/* === v16: プレイ傾向で解放される適応職 / 行動・ステ振り・武器履歴 === */
-(()=>{
-  const V16_VERSION='v16_adaptive_jobs';
-  const META_KEY='itrl_meta_v3';
-  const CAT_KEY='itrl_job_category_v14';
-  const BASE_LOCK_FLOOR=999999;
-  const STAT_KEYS=['STR','INT','VIT','DEX','AGI','LUK','HP','MP'];
-
-  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-  function readMeta(){
-    let m={unlocked:50,bestFloor:1,titles:['beginner'],activeTitle:'beginner',jobBest:{},kills:0};
-    try{m=Object.assign(m,JSON.parse(localStorage.getItem(META_KEY)||'{}'));}catch(e){}
-    if(!m.behavior||typeof m.behavior!=='object')m.behavior={};
-    const b=m.behavior;
-    if(!b.actions)b.actions={};
-    if(!b.stats)b.stats={};
-    if(!b.weapons)b.weapons={};
-    if(!b.unlocks)b.unlocks={};
-    if(!b.jobs)b.jobs={};
-    ['attack','defend','potion','flee','phys','mag','ult','weaponSkill','cleanse','forge','chest','shopBuy'].forEach(k=>{b.actions[k]=Number(b.actions[k])||0;});
-    STAT_KEYS.forEach(k=>{b.stats[k]=Number(b.stats[k])||0;});
-    ['equipWeapon','dualWield','weak','normal','high','ultra','skillWeapon','atkWeapon','magicWeapon','defWeapon','spdWeapon'].forEach(k=>{b.weapons[k]=Number(b.weapons[k])||0;});
-    b.lastJob=b.lastJob||'';
-    return m;
-  }
-  function saveMeta(m){try{localStorage.setItem(META_KEY,JSON.stringify(m));}catch(e){}}
-  function bump(path,amount=1){
-    const m=readMeta();let o=m;
-    for(let i=0;i<path.length-1;i++){o[path[i]]=o[path[i]]||{};o=o[path[i]];}
-    const k=path[path.length-1];o[k]=(Number(o[k])||0)+amount;saveMeta(m);return o[k];
-  }
-  function val(path){let o=readMeta();for(const k of path){o=o&&o[k];}return Number(o)||0;}
-  function bestFloor(){return Number(readMeta().bestFloor)||1;}
-  function statTotal(k){return val(['behavior','stats',k]);}
-  function action(k){return val(['behavior','actions',k]);}
-  function weapon(k){return val(['behavior','weapons',k]);}
-
-  function makePassive(kind,n,d){
-    const fns={
-      atk:p=>{p.atk+=5;p.physBonus=(p.physBonus||1)*1.08;},
-      mag:p=>{p.maxMp+=35;p.mp+=35;p.magBonus=(p.magBonus||1)*1.1;},
-      def:p=>{p.def+=7;p.maxHp+=45;p.hp+=45;p.dmgReduce=Math.max(p.dmgReduce||0,.12);},
-      spd:p=>{p.spd+=7;p.evade=(p.evade||0)+.08;},
-      luck:p=>{if(p.stats)p.stats.LUK=(p.stats.LUK||0)+12;p.critRate=(p.critRate||0)+.08;p.goldBonus=(p.goldBonus||1)*1.2;},
-      heal:p=>{p.maxHp+=30;p.hp+=30;p.potionBonus=Math.max(p.potionBonus||1,1.8);p.hpRegen=(p.hpRegen||0)+4;},
-      weapon:p=>{p.atk+=4;p.critRate=(p.critRate||0)+.06;p.mpOnAtk=(p.mpOnAtk||0)+3;},
-      curse:p=>{p.def+=4;p.lifeSteal=Math.max(p.lifeSteal||0,.12);p.poisonImmune=true;}
-    };
-    return {n,d,apply:fns[kind]||fns.atk};
-  }
-  function job(id,n,i,cat,condText,cond,base){
-    const tag={martial:'戦士',magic:'魔法使い',guard:'パラディン',summon:'召喚士',dark:'ネクロマンサー',evolution:'戦士'}[cat]||'戦士';
-    const elem={martial:'闘気',magic:'魔法',guard:'光',summon:'自然',dark:'闇'}[cat]||'無';
-    const b=Object.assign({hp:96,mp:62,atk:15,def:9,spd:11,kind:'atk'},base||{});
-    return {
-      id:'adapt_'+id,n,i,t:tag,hp:b.hp,mp:b.mp,atk:b.atk,def:b.def,spd:b.spd,
-      pass:[makePassive(b.kind,n+'適性',condText),makePassive(b.kind,'適応進化','プレイ傾向により基礎能力が伸びる')],
-      phys:b.phys||{n:n+'の一撃',d:'ATK×2.4',cost:16,fn:b.kind==='def'?'defAtk':'physMul',mul:2.4},
-      mag:b.mag||{n:n+'術式',d:`${elem}属性ATK×3.2`,cost:30,fn:b.kind==='heal'?'healPct':'magAtk',mul:3.2,elem,pct:.35},
-      ult:b.ult||{n:'適応奥義・'+n,d:'プレイ傾向で目覚めた奥義',cost:46,cd:7,fn:b.kind==='def'?'fortressUlt':(b.kind==='mag'?'magAtk':(b.kind==='spd'?'perfectEvade':'pierce')),mul:4.5,elem,fullPierce:true},
-      v15:{version:'v15_1021_titles_evolution_dual',generated:true,kind:'condition',cat,floorReq:BASE_LOCK_FLOOR},
-      v16:{version:V16_VERSION,cat,condText,cond}
-    };
-  }
-
-  const ADAPTIVE_JOBS=[
-    job('str_brawler','剛腕拳聖','💪','martial','STRに合計12回以上ステ振り',()=>statTotal('STR')>=12,{hp:110,atk:22,def:8,spd:12,kind:'atk'}),
-    job('str_over','破砕王','🪨','martial','STRに合計25回以上ステ振り',()=>statTotal('STR')>=25,{hp:135,atk:29,def:10,spd:9,kind:'atk',ult:{n:'山砕き',d:'DEF無視の超打撃',cost:52,cd:8,fn:'pierce',mul:6.2,fullPierce:true}}),
-    job('int_archmage','深層魔導士','🧙‍♂️','magic','INTに合計12回以上ステ振り',()=>statTotal('INT')>=12,{hp:75,mp:118,atk:10,def:5,spd:10,kind:'mag'}),
-    job('int_star','星詠みの大魔導','🌌','magic','INT25回以上＋魔法スキル50回以上',()=>statTotal('INT')>=25&&action('mag')>=50,{hp:82,mp:150,atk:11,def:6,spd:11,kind:'mag',mag:{n:'星界崩壊',d:'星属性ATK×5.8',cost:58,fn:'magAtk',mul:5.8,elem:'星'}}),
-    job('vit_guard','不動の守護者','🛡️','guard','VIT12回以上、または防御50回以上',()=>statTotal('VIT')>=12||action('defend')>=50,{hp:150,mp:58,atk:12,def:23,spd:6,kind:'def'}),
-    job('vit_fortress','歩く要塞','🏰','guard','VIT25回以上＋防御100回以上',()=>statTotal('VIT')>=25&&action('defend')>=100,{hp:210,mp:70,atk:13,def:31,spd:5,kind:'def'}),
-    job('agi_runner','疾風踏破者','🌪️','martial','AGI12回以上、または逃走15回以上',()=>statTotal('AGI')>=12||action('flee')>=15,{hp:88,mp:70,atk:15,def:6,spd:25,kind:'spd'}),
-    job('agi_shadow','影走りの王','👟','dark','AGI25回以上＋逃走30回以上',()=>statTotal('AGI')>=25&&action('flee')>=30,{hp:92,mp:92,atk:18,def:6,spd:34,kind:'spd'}),
-    job('dex_sniper','精密射手','🎯','martial','DEX12回以上、または通常攻撃100回以上',()=>statTotal('DEX')>=12||action('attack')>=100,{hp:92,mp:64,atk:21,def:6,spd:17,kind:'atk'}),
-    job('dex_thread','糸読みの狙撃手','🧵','martial','DEX25回以上＋物理スキル80回以上',()=>statTotal('DEX')>=25&&action('phys')>=80,{hp:100,mp:78,atk:26,def:7,spd:20,kind:'atk'}),
-    job('luk_fortune','幸運蒐集家','🍀','dark','LUK12回以上、または宝箱30回以上',()=>statTotal('LUK')>=12||action('chest')>=30,{hp:88,mp:75,atk:15,def:7,spd:13,kind:'luck'}),
-    job('luk_miracle','奇跡収集王','🌈','dark','LUK25回以上＋Shop購入50回以上',()=>statTotal('LUK')>=25&&action('shopBuy')>=50,{hp:96,mp:100,atk:18,def:9,spd:15,kind:'luck'}),
-    job('hp_wall','生命鍛冶僧','❤️','guard','HPに合計12回以上ステ振り',()=>statTotal('HP')>=12,{hp:190,mp:48,atk:11,def:18,spd:7,kind:'def'}),
-    job('mp_caster','魔力循環師','💧','magic','MPに合計12回以上ステ振り',()=>statTotal('MP')>=12,{hp:78,mp:155,atk:10,def:6,spd:10,kind:'mag'}),
-    job('potion_tactician','薬理戦術士','🧪','summon','回復薬を20回以上使用',()=>action('potion')>=20,{hp:112,mp:90,atk:12,def:10,spd:10,kind:'heal'}),
-    job('cleanser','呪浄師','🧿','guard','浄化薬を5回以上使用',()=>action('cleanse')>=5,{hp:115,mp:105,atk:12,def:14,spd:10,kind:'heal',mag:{n:'大浄化',d:'HP回復＋防御寄り',cost:36,fn:'healPct',pct:.45}}),
-    job('phys_spammer','連技狂い','⚔️','martial','物理スキルを60回以上使用',()=>action('phys')>=60,{hp:105,mp:70,atk:24,def:8,spd:16,kind:'atk'}),
-    job('mag_spammer','詠唱中毒者','📜','magic','魔法スキルを60回以上使用',()=>action('mag')>=60,{hp:80,mp:135,atk:10,def:5,spd:12,kind:'mag'}),
-    job('ult_spammer','奥義解放者','🔥','dark','ULTを20回以上使用',()=>action('ult')>=20,{hp:106,mp:110,atk:20,def:10,spd:13,kind:'atk'}),
-    job('weapon_skill','武器技師','🛠️','martial','武器スキルを30回以上使用',()=>action('weaponSkill')>=30,{hp:102,mp:80,atk:22,def:9,spd:14,kind:'weapon'}),
-    job('weak_blade','折れ刃の達人','🪓','martial','弱い武器を5回以上装備',()=>weapon('weak')>=5,{hp:95,mp:62,atk:20,def:7,spd:17,kind:'weapon',pass:[makePassive('weapon','弱武器適応','弱い武器でも力を引き出す'),makePassive('luck','逆境の運','弱装備からの成長補正')]}),
-    job('normal_arms','標準武装兵','🗡️','martial','普通武器を10回以上装備',()=>weapon('normal')>=10,{hp:108,mp:64,atk:22,def:10,spd:12,kind:'weapon'}),
-    job('high_roller','上振れ武装者','✨','martial','上振れ武器を5回以上装備',()=>weapon('high')>=5,{hp:112,mp:82,atk:27,def:10,spd:15,kind:'weapon'}),
-    job('ultra_relic','超神器適合者','👑','evolution','超強い武器を1回以上装備',()=>weapon('ultra')>=1,{hp:150,mp:125,atk:34,def:16,spd:16,kind:'weapon',ult:{n:'神器共鳴',d:'超高倍率攻撃',cost:70,cd:10,fn:'pierce',mul:8.0,fullPierce:true}}),
-    job('dual_wielder','双装の旅人','⚔️','martial','右手と左手に武器を装備した回数10回以上',()=>weapon('dualWield')>=10,{hp:106,mp:72,atk:24,def:8,spd:18,kind:'weapon'}),
-    job('atk_weapon','攻撃武器蒐集家','🔴','martial','ATK寄り武器を15回以上装備',()=>weapon('atkWeapon')>=15,{hp:105,mp:70,atk:28,def:8,spd:12,kind:'weapon'}),
-    job('magic_weapon','魔装剣士','🟣','magic','INT/MP寄り武器を10回以上装備',()=>weapon('magicWeapon')>=10,{hp:88,mp:125,atk:16,def:7,spd:13,kind:'mag'}),
-    job('def_weapon','重装武器使い','⚙️','guard','DEF/HP寄り武器を10回以上装備',()=>weapon('defWeapon')>=10,{hp:145,mp:70,atk:17,def:23,spd:6,kind:'def'}),
-    job('spd_weapon','軽刃走者','🪽','martial','SPD/AGI寄り武器を10回以上装備',()=>weapon('spdWeapon')>=10,{hp:92,mp:74,atk:20,def:7,spd:27,kind:'spd'}),
-    job('balanced','均衡の適応者','⚖️','summon','STR/INT/VIT/AGIを各8回以上ステ振り',()=>['STR','INT','VIT','AGI'].every(k=>statTotal(k)>=8),{hp:125,mp:105,atk:21,def:15,spd:17,kind:'luck'}),
-    job('deep_adapt','深層適応体','🧬','evolution','最高到達200階以上＋適応職を5職以上解放',()=>bestFloor()>=200&&unlockedAdaptiveJobs().length>=5,{hp:180,mp:140,atk:32,def:22,spd:22,kind:'weapon'}),
-    job('chaos_player','混沌プレイヤー','🎲','dark','攻撃/防御/逃走/薬/スキルを幅広く使用',()=>action('attack')>=50&&action('defend')>=20&&action('flee')>=5&&action('potion')>=10&&action('phys')>=20&&action('mag')>=20,{hp:120,mp:120,atk:23,def:14,spd:18,kind:'luck'})
-  ];
-
-  function hasJob(id){return Array.isArray(JOBS)&&JOBS.some(j=>j&&j.id===id);}
-  function installAdaptiveJobs(){
-    if(!Array.isArray(JOBS))return;
-    ADAPTIVE_JOBS.forEach(j=>{if(!hasJob(j.id))JOBS.push(j);});
-  }
-  function isAdaptive(j){return !!(j&&j.v16&&j.v16.version===V16_VERSION);}
-  function adaptiveUnlocked(j){try{return isAdaptive(j)&&!!j.v16.cond();}catch(e){return false;}}
-  function unlockedAdaptiveJobs(){return ADAPTIVE_JOBS.filter(adaptiveUnlocked);}
-  window.unlockedAdaptiveJobsV16=unlockedAdaptiveJobs;
-
-  function conditionText(j){return isAdaptive(j)?j.v16.condText:'条件不明';}
-  function jobCat(j){return isAdaptive(j)?j.v16.cat:((j&&j.v15&&j.v15.cat)||'martial');}
-  function currentCat(){return localStorage.getItem(CAT_KEY)||'all';}
-  function queryMatch(j,q){
-    if(!q)return true;
-    const s=(j.n+' '+j.t+' '+conditionText(j)+' '+jobCat(j)).toLowerCase();
-    return s.includes(q.toLowerCase());
-  }
-  function markUnlockedPopups(){
-    const m=readMeta();const b=m.behavior;const got=[];
-    ADAPTIVE_JOBS.forEach(j=>{
-      if(adaptiveUnlocked(j)&&!b.unlocks[j.id]){b.unlocks[j.id]=Date.now();got.push(j);}
-    });
-    saveMeta(m);
-    if(got.length&&typeof addLog==='function')got.slice(0,3).forEach(j=>addLog(`🧬 適応職解放：${j.i}${j.n}`,'l-i'));
-  }
-
-  const oldRenderJobGrid=window.renderJobGrid||((typeof renderJobGrid==='function')?renderJobGrid:null);
-  window.renderJobGrid=function(q=''){
-    installAdaptiveJobs();markUnlockedPopups();
-    oldRenderJobGrid&&oldRenderJobGrid(q);
-    const grid=document.getElementById('job-grid');if(!grid)return;
-    const cat=currentCat();
-    const list=ADAPTIVE_JOBS.filter(j=>adaptiveUnlocked(j)&&queryMatch(j,q)&&(cat==='all'||jobCat(j)===cat));
-    if(list.length){
-      const head=document.createElement('div');head.className='muted';head.style.gridColumn='1/-1';head.style.margin='4px 0 0';head.innerHTML=`🧬 適応職：${list.length}職解放中`;grid.appendChild(head);
-    }
-    list.forEach(j=>{
-      if(document.getElementById('jc-'+j.id))return;
-      const d=document.createElement('div');d.className='jcard v16-adaptive-card';d.id='jc-'+j.id;
-      d.innerHTML=`<div class="ji">${esc(j.i)}</div><div class="jn">${esc(j.n)}</div><div class="jt">🧬 適応職 / ${esc(j.t)}</div><div class="v16-cond">${esc(conditionText(j))}</div>`;
-      d.onclick=()=>selectJob(j.id);grid.appendChild(d);
-    });
-    try{const c=document.getElementById('job-count');if(c)c.textContent=`${grid.querySelectorAll('.jcard').length}職表示 / 全${JOBS.length}職`; }catch(e){}
-  };
-  try{renderJobGrid=window.renderJobGrid;}catch(e){}
-  window.filterJobs=function(){window.renderJobGrid(document.getElementById('job-search')?.value||'');};try{filterJobs=window.filterJobs;}catch(e){}
-
-  const oldSelectJob=window.selectJob||((typeof selectJob==='function')?selectJob:null);
-  window.selectJob=function(id){
-    const j=Array.isArray(JOBS)?JOBS.find(x=>x&&x.id===id):null;
-    if(isAdaptive(j)){
-      if(!adaptiveUnlocked(j)){
-        const det=document.getElementById('job-detail');if(det){det.style.display='block';det.innerHTML=`<div class="card"><b>🔒 未解放の適応職</b><div class="muted" style="margin-top:6px">${esc(conditionText(j))}</div></div>`;}
-        const st=document.getElementById('start-btn');if(st)st.disabled=true;return;
-      }
-      if(window.G){G.selectedJob=id;}
-      document.querySelectorAll('.jcard').forEach(x=>x.classList.remove('sel'));
-      document.getElementById('jc-'+id)?.classList.add('sel');
-      const st=document.getElementById('start-btn');if(st)st.disabled=false;
-      const det=document.getElementById('job-detail');
-      if(det){
-        det.style.display='block';
-        det.innerHTML=`<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:24px">${esc(j.i)}</span><div><div style="font-size:15px;font-weight:500;color:var(--color-text-primary)">${esc(j.n)}</div><div class="muted">🧬 適応職 / ${esc(j.t)}</div></div></div>
-          <div class="trait-row"><span class="trait-chip">解放条件達成</span><span class="trait-chip">${esc(conditionText(j))}</span></div>
-          <div class="stat-grid" style="margin-bottom:6px">
-            <div class="stat-item"><span>HP</span><b>${j.hp}</b></div><div class="stat-item"><span>MP</span><b>${j.mp}</b></div>
-            <div class="stat-item"><span>ATK</span><b>${j.atk}</b></div><div class="stat-item"><span>DEF</span><b>${j.def}</b></div>
-            <div class="stat-item"><span>SPD</span><b>${j.spd}</b></div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <div class="surf" style="font-size:11px"><span class="tag tag-pass">パッシブ</span> ${esc(j.pass?.[0]?.n||'')} — ${esc(j.pass?.[0]?.d||'')}</div>
-            <div class="surf" style="font-size:11px"><span class="tag tag-phys">物理</span> ${esc(j.phys?.n||'')} — ${esc(j.phys?.d||'')} [MP:${j.phys?.cost||0}]</div>
-            <div class="surf" style="font-size:11px"><span class="tag tag-mag">魔法</span> ${esc(j.mag?.n||'')} — ${esc(j.mag?.d||'')} [MP:${j.mag?.cost||0}]</div>
-            <div class="surf" style="font-size:11px"><span class="tag tag-ult">ULT</span> ${esc(j.ult?.n||'')} — ${esc(j.ult?.d||'')} [MP:${j.ult?.cost||0}]</div>
-          </div></div>`;
-      }
-      try{if(typeof renderDualControlsV15==='function')renderDualControlsV15();}catch(e){}
-      return;
-    }
-    oldSelectJob&&oldSelectJob(id);
-  };
-  try{selectJob=window.selectJob;}catch(e){}
-
-  function tempUnlockSelectedAdaptive(){
-    const ids=[];
-    try{if(G&&G.selectedJob)ids.push(G.selectedJob);if(G&&G.selectedSubJob)ids.push(G.selectedSubJob);}catch(e){}
-    const changed=[];
-    ids.forEach(id=>{
-      const j=JOBS.find(x=>x&&x.id===id);
-      if(isAdaptive(j)&&adaptiveUnlocked(j)){changed.push([j,j.v15.floorReq]);j.v15.floorReq=1;}
-    });
-    return ()=>changed.forEach(([j,old])=>{j.v15.floorReq=old;});
-  }
-  const oldStartGame=window.startGame||((typeof startGame==='function')?startGame:null);
-  window.startGame=function(){
-    const restore=tempUnlockSelectedAdaptive();
-    try{return oldStartGame&&oldStartGame.apply(this,arguments);}finally{setTimeout(restore,0);try{const p=G&&G.player;if(p&&p.jobId&&p.jobId.startsWith('adapt_')){const m=readMeta();m.behavior.lastJob=p.jobId;saveMeta(m);}}catch(e){}}
-  };
-  try{startGame=window.startGame;}catch(e){}
-
-  function trackWeapon(it,p){
-    if(!it||it.slot!=='weapon')return;
-    bump(['behavior','weapons','equipWeapon']);
-    const tier=(it.powerTier||it.tier||it.v10Tier||'').toString();
-    const rar=(it.rar||'').toString();
-    const name=(it.n||'').toString();
-    if(tier==='weak'||name.includes('弱')||name.includes('粗悪'))bump(['behavior','weapons','weak']);
-    else if(tier==='high'||tier==='lucky'||name.includes('上振れ'))bump(['behavior','weapons','high']);
-    else if(tier==='ultra'||it.ultra||name.includes('超強')||name.includes('神器'))bump(['behavior','weapons','ultra']);
-    else if(rar==='legend'||rar==='epic')bump(['behavior','weapons','high']);
-    else bump(['behavior','weapons','normal']);
-    if(it.weaponSkill)bump(['behavior','weapons','skillWeapon']);
-    const st=it.stats||{};
-    if((st.ATK||0)+(st.STR||0)>=(st.INT||0)+(st.MP||0)+(st.DEF||0)+(st.HP||0))bump(['behavior','weapons','atkWeapon']);
-    if((st.INT||0)+(st.MP||0)>0)bump(['behavior','weapons','magicWeapon']);
-    if((st.DEF||0)+(st.HP||0)+(st.VIT||0)>0)bump(['behavior','weapons','defWeapon']);
-    if((st.SPD||0)+(st.AGI||0)+(st.DEX||0)>0)bump(['behavior','weapons','spdWeapon']);
-    try{if(p&&p.equip&&p.equip.right&&p.equip.left)bump(['behavior','weapons','dualWield']);}catch(e){}
-    markUnlockedPopups();
-  }
-
-  function wrapAction(fnName,path){
-    const old=window[fnName]||((typeof globalThis[fnName]==='function')?globalThis[fnName]:null);
-    if(typeof old!=='function')return;
-    window[fnName]=function(){bump(path);markUnlockedPopups();return old.apply(this,arguments);};
-    try{eval(fnName+'=window[fnName]');}catch(e){}
-  }
-  wrapAction('doAtk',['behavior','actions','attack']);
-  wrapAction('doDef',['behavior','actions','defend']);
-  wrapAction('usePotion',['behavior','actions','potion']);
-  wrapAction('doFlee',['behavior','actions','flee']);
-
-  const oldUseSkill=window.useSkill||((typeof useSkill==='function')?useSkill:null);
-  if(typeof oldUseSkill==='function'){
-    window.useSkill=function(type){
-      if(type==='phys'||type==='mag'||type==='ult')bump(['behavior','actions',type]);
-      markUnlockedPopups();return oldUseSkill.apply(this,arguments);
-    };
-    try{useSkill=window.useSkill;}catch(e){}
-  }
-  const oldWeaponSkill=window.useWeaponSkillV10||null;
-  if(typeof oldWeaponSkill==='function'){
-    window.useWeaponSkillV10=function(slot){bump(['behavior','actions','weaponSkill']);markUnlockedPopups();return oldWeaponSkill.apply(this,arguments);};
-  }
-  const oldCleanse=window.useCurseCure||null;
-  if(typeof oldCleanse==='function'){
-    window.useCurseCure=function(){const ok=oldCleanse.apply(this,arguments);if(ok){bump(['behavior','actions','cleanse']);markUnlockedPopups();}return ok;};
-  }
-  const oldAllocate=window.allocateStat||((typeof allocateStat==='function')?allocateStat:null);
-  if(typeof oldAllocate==='function'){
-    window.allocateStat=function(k){const before=G&&G.player?Number(G.player.statPoints)||0:0;const res=oldAllocate.apply(this,arguments);const after=G&&G.player?Number(G.player.statPoints)||0:before;if(after<before&&STAT_KEYS.includes(k)){bump(['behavior','stats',k]);markUnlockedPopups();}return res;};
-    try{allocateStat=window.allocateStat;}catch(e){}
-  }
-  const oldPerm=window.allocatePermStat||null;
-  if(typeof oldPerm==='function'){
-    window.allocatePermStat=function(k){const res=oldPerm.apply(this,arguments);if(STAT_KEYS.includes(k)){bump(['behavior','stats',k]);markUnlockedPopups();}return res;};
-  }
-  const oldEquip=window.equipItem||((typeof equipItem==='function')?equipItem:null);
-  if(typeof oldEquip==='function'){
-    window.equipItem=function(id,slot){const res=oldEquip.apply(this,arguments);try{const p=G&&G.player;const it=typeof getEquipById==='function'?getEquipById(p,id):(p.inventory.equipment||[]).find(x=>x.id===id);trackWeapon(it,p);}catch(e){}return res;};
-    try{equipItem=window.equipItem;}catch(e){}
-  }
-  const oldBuy=window.buyShopItemV3||((typeof buyShopItemV3==='function')?buyShopItemV3:null);
-  if(typeof oldBuy==='function'){
-    window.buyShopItemV3=function(){const res=oldBuy.apply(this,arguments);bump(['behavior','actions','shopBuy']);markUnlockedPopups();return res;};
-    try{buyShopItemV3=window.buyShopItemV3;}catch(e){}
-  }
-  const oldOpenChest=window.openChest||((typeof openChest==='function')?openChest:null);
-  if(typeof oldOpenChest==='function'){
-    window.openChest=function(){const res=oldOpenChest.apply(this,arguments);bump(['behavior','actions','chest']);markUnlockedPopups();return res;};
-    try{openChest=window.openChest;}catch(e){}
-  }
-  const oldForge=window.forgeEnhance||((typeof forgeEnhance==='function')?forgeEnhance:null);
-  if(typeof oldForge==='function'){
-    window.forgeEnhance=function(){const res=oldForge.apply(this,arguments);bump(['behavior','actions','forge']);markUnlockedPopups();return res;};
-    try{forgeEnhance=window.forgeEnhance;}catch(e){}
-  }
-
-  function renderAdaptivePanel(){
-    const search=document.getElementById('job-search');if(!search)return;
-    let p=document.getElementById('v16-adaptive-panel');
-    if(!p){p=document.createElement('div');p.id='v16-adaptive-panel';p.className='card';p.style.margin='8px 0';search.parentNode.insertBefore(p,search);}
-    const m=readMeta();const b=m.behavior;const unlocked=unlockedAdaptiveJobs();
-    const topStats=STAT_KEYS.map(k=>[k,b.stats[k]||0]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>`${x[0]}:${x[1]}`).join(' / ');
-    p.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap"><b>🧬 適応職</b><span class="trait-chip">${unlocked.length}/${ADAPTIVE_JOBS.length}職解放</span></div>
-      <div class="muted" style="margin-top:4px">行動・ステ振り・武器の履歴で解放。上位条件ほど尖った職業が出ます。</div>
-      <div class="v16-mini-grid" style="margin-top:6px">
-        <span>⚔️攻撃 ${b.actions.attack||0}</span><span>🛡️防御 ${b.actions.defend||0}</span><span>🔮魔法 ${b.actions.mag||0}</span><span>🔥ULT ${b.actions.ult||0}</span><span>🧪薬 ${b.actions.potion||0}</span><span>📈${esc(topStats||'まだなし')}</span>
-      </div>`;
-  }
-
-  function addStyle(){
-    if(document.getElementById('v16-style'))return;
-    const st=document.createElement('style');st.id='v16-style';st.textContent=`
-      .v16-adaptive-card{border-color:#7C4DFF!important;background:linear-gradient(180deg,rgba(124,77,255,.08),transparent)}
-      .v16-cond{font-size:10px;color:var(--color-text-secondary);margin-top:3px;line-height:1.35}
-      .v16-mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:4px;font-size:10px;color:var(--color-text-secondary)}
-      .v16-mini-grid span{background:var(--color-background-secondary);border-radius:8px;padding:4px 6px}
-      @media(max-width:820px){#v16-adaptive-panel{font-size:12px}.v16-mini-grid{grid-template-columns:repeat(2,1fr)}}
-    `;document.head.appendChild(st);
-  }
-
-  const oldInit=window.initTitle||((typeof initTitle==='function')?initTitle:null);
-  window.initTitle=function(){
-    oldInit&&oldInit.apply(this,arguments);
-    try{installAdaptiveJobs();addStyle();markUnlockedPopups();renderAdaptivePanel();const title=document.querySelector('#scr-title h2');if(title)title.textContent='🏰 無限の塔 v16';const note=document.getElementById('v12-title-note');if(note)note.innerHTML=`📱 <b>v16</b>：1021職に加えて、行動・ステ振り・武器履歴で解放される適応職を追加。`;window.renderJobGrid(document.getElementById('job-search')?.value||'');}catch(e){console.warn('v16 init error',e);}
-  };
-  try{initTitle=window.initTitle;}catch(e){}
-
-  const oldRenderTitlePanelMaybe=window.renderTitlePanelV15;
-  window.renderAdaptivePanelV16=renderAdaptivePanel;
-  try{installAdaptiveJobs();addStyle();markUnlockedPopups();renderAdaptivePanel();const title=document.querySelector('#scr-title h2');if(title)title.textContent='🏰 無限の塔 v16';window.renderJobGrid(document.getElementById('job-search')?.value||'');}catch(e){}
-})();
-</script>
-
-
-<script>
-/* === v17: 職業ごとの隠しステータス / 隠し補正 === */
-(()=>{
-  const V17_VERSION='v17_hidden_modifiers';
-  const V17_PROFILE_VERSION='1.0';
-
-  function escV17(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-  function clampV17(v,a,b){return Math.max(a,Math.min(b,v));}
-  function hashV17(str){
-    let h=2166136261>>>0;
-    str=String(str||'');
-    for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}
-    return h>>>0;
-  }
-  function catV17(j){
-    if(j&&j.v16&&j.v16.cat)return j.v16.cat;
-    if(j&&j.v15&&j.v15.kind==='evolution')return 'evolution';
-    if(j&&j.v15&&j.v15.cat)return j.v15.cat;
-    const t=(j&&j.t)||'';
-    if(['戦士','盗賊','忍者','侍','バーサーカー','モンク','アーチャー'].includes(t))return 'martial';
-    if(['魔法使い','錬金術師','占い師'].includes(t))return 'magic';
-    if(['パラディン','聖職者'].includes(t))return 'guard';
-    if(['召喚士','ドルイド','シャーマン'].includes(t))return 'summon';
-    return 'dark';
-  }
-  function emptyModsV17(){return {
-    allDmgMul:1,physMul:1,magMul:1,ultMul:1,bossMul:1,weaponSkillMul:1,
-    xpMul:1,goldMul:1,dropLuck:0,chestLuck:0,shopLuck:0,
-    takenMul:1,mpCostMul:1,potionMul:1,critAdd:0,evadeAdd:0,curseResist:0,
-    regenHp:0,regenMp:0,lifeStealAdd:0,lowHpDmgMul:1,
-    weaponTier:{weak:1,normal:1,high:1,ultra:1,skill:1},
-    hints:[],secretName:'',grade:''
-  };}
-  function addHintV17(m,h){if(h&&!m.hints.includes(h))m.hints.push(h);}
-  function scaleMulV17(base,add){return base*(1+add);} 
-
-  const QUIRKS_V17=[
-    {id:'boss',name:'討伐本能',hint:'ボス戦で妙に火力が伸びる',apply:(m,s)=>{m.bossMul=scaleMulV17(m.bossMul,.04+s*.012);}},
-    {id:'xp',name:'経験吸収',hint:'経験値を吸いやすい',apply:(m,s)=>{m.xpMul=scaleMulV17(m.xpMul,.04+s*.01);}},
-    {id:'gold',name:'金運',hint:'金貨を拾うのがうまい',apply:(m,s)=>{m.goldMul=scaleMulV17(m.goldMul,.05+s*.012);}},
-    {id:'drop',name:'素材嗅覚',hint:'素材や宝箱に縁がある',apply:(m,s)=>{m.dropLuck+=.025+s*.006;m.chestLuck+=.015+s*.004;}},
-    {id:'shop',name:'値切り癖',hint:'Shopで良い物を引きやすい',apply:(m,s)=>{m.shopLuck+=.03+s*.007;m.goldMul=scaleMulV17(m.goldMul,.02);}},
-    {id:'mp',name:'省エネ詠唱',hint:'MP消費が少し軽くなる',apply:(m,s)=>{m.mpCostMul*=1-(.035+s*.006);}},
-    {id:'crit',name:'急所感覚',hint:'会心が出やすい',apply:(m,s)=>{m.critAdd+=.018+s*.004;}},
-    {id:'evade',name:'身かわし',hint:'たまに攻撃を避けやすい',apply:(m,s)=>{m.evadeAdd+=.012+s*.004;m.takenMul*=.99;}},
-    {id:'curse',name:'呪詛耐性',hint:'呪いの悪影響に強い',apply:(m,s)=>{m.curseResist+=.18+s*.035;}},
-    {id:'potion',name:'薬効増幅',hint:'薬の効きが少し良い',apply:(m,s)=>{m.potionMul=scaleMulV17(m.potionMul,.06+s*.012);}},
-    {id:'weak',name:'弱武器適性',hint:'弱い武器を扱うと化ける',apply:(m,s)=>{m.weaponTier.weak=scaleMulV17(m.weaponTier.weak,.10+s*.02);}},
-    {id:'normal',name:'安定武装',hint:'普通の武器で安定して強い',apply:(m,s)=>{m.weaponTier.normal=scaleMulV17(m.weaponTier.normal,.06+s*.012);}},
-    {id:'high',name:'上振れ適合',hint:'上振れ武器の性能を引き出す',apply:(m,s)=>{m.weaponTier.high=scaleMulV17(m.weaponTier.high,.07+s*.015);}},
-    {id:'ultra',name:'神器共鳴',hint:'超強い武器と相性が良い',apply:(m,s)=>{m.weaponTier.ultra=scaleMulV17(m.weaponTier.ultra,.08+s*.018);}},
-    {id:'wskill',name:'武技共鳴',hint:'武器スキルが少し強い',apply:(m,s)=>{m.weaponSkillMul=scaleMulV17(m.weaponSkillMul,.07+s*.015);m.weaponTier.skill=scaleMulV17(m.weaponTier.skill,.04+s*.01);}},
-    {id:'regen',name:'塔内呼吸',hint:'長期戦で少し粘る',apply:(m,s)=>{m.regenHp+=1+Math.floor(s/2); if(s>=3)m.regenMp+=1;}},
-    {id:'lowhp',name:'逆境補正',hint:'HPが減るほど火力が出る',apply:(m,s)=>{m.lowHpDmgMul=scaleMulV17(m.lowHpDmgMul,.08+s*.018);}},
-    {id:'safe',name:'防衛勘',hint:'受けるダメージが少し下がる',apply:(m,s)=>{m.takenMul*=1-(.035+s*.006);}},
-    {id:'drain',name:'微吸収',hint:'与えたダメージの一部を吸う',apply:(m,s)=>{m.lifeStealAdd+=.015+s*.004;}},
-    {id:'ult',name:'切り札強化',hint:'ULTの伸びが良い',apply:(m,s)=>{m.ultMul=scaleMulV17(m.ultMul,.08+s*.018);}}
-  ];
-
-  function generatedHiddenProfileV17(j,idx){
-    const m=emptyModsV17();
-    const id=String((j&&j.id)||idx);
-    const h=hashV17(id+'|'+((j&&j.n)||'')+'|'+idx+'|'+V17_PROFILE_VERSION);
-    const cat=catV17(j);
-    const strength=1+(h%5); // 1〜5。数値は非公開。
-
-    if(cat==='martial'){
-      m.physMul=scaleMulV17(m.physMul,.045);m.weaponTier.normal=scaleMulV17(m.weaponTier.normal,.025);m.critAdd+=.006;addHintV17(m,'身体能力の伸びが良い');
-    }else if(cat==='magic'){
-      m.magMul=scaleMulV17(m.magMul,.055);m.mpCostMul*=.975;m.xpMul=scaleMulV17(m.xpMul,.015);addHintV17(m,'魔力効率が良い');
-    }else if(cat==='guard'){
-      m.takenMul*=.955;m.potionMul=scaleMulV17(m.potionMul,.025);m.curseResist+=.05;addHintV17(m,'守りと回復が安定する');
-    }else if(cat==='summon'){
-      m.dropLuck+=.025;m.chestLuck+=.012;m.regenHp+=1;addHintV17(m,'探索報酬に縁がある');
-    }else if(cat==='evolution'){
-      m.allDmgMul=scaleMulV17(m.allDmgMul,.035);m.bossMul=scaleMulV17(m.bossMul,.025);m.xpMul=scaleMulV17(m.xpMul,.02);addHintV17(m,'進化職らしい万能補正を持つ');
-    }else{
-      m.allDmgMul=scaleMulV17(m.allDmgMul,.025);m.lifeStealAdd+=.01;m.curseResist+=.03;addHintV17(m,'癖の強い特殊補正を持つ');
-    }
-    if(j&&j.v16){m.dropLuck+=.012;m.shopLuck+=.012;addHintV17(m,'プレイ傾向と噛み合うと伸びる');}
-
-    const q1=QUIRKS_V17[h%QUIRKS_V17.length];
-    const q2=QUIRKS_V17[(Math.floor(h/97)+idx)%QUIRKS_V17.length];
-    const q3=QUIRKS_V17[(Math.floor(h/7919)+idx*3)%QUIRKS_V17.length];
-    [q1,q2].forEach(q=>{q.apply(m,strength);addHintV17(m,q.hint);});
-    if(idx%17===0||((h>>>8)%11===0)){q3.apply(m,Math.max(1,strength-1));addHintV17(m,q3.hint);}
-
-    // 強すぎ防止。隠し補正なので効くが壊れない範囲に丸める。
-    m.allDmgMul=clampV17(m.allDmgMul,0.9,1.18);m.physMul=clampV17(m.physMul,0.9,1.20);m.magMul=clampV17(m.magMul,0.9,1.22);m.ultMul=clampV17(m.ultMul,0.9,1.25);
-    m.bossMul=clampV17(m.bossMul,0.9,1.22);m.weaponSkillMul=clampV17(m.weaponSkillMul,0.9,1.25);
-    m.xpMul=clampV17(m.xpMul,0.9,1.18);m.goldMul=clampV17(m.goldMul,0.9,1.22);m.takenMul=clampV17(m.takenMul,0.82,1.08);m.mpCostMul=clampV17(m.mpCostMul,0.82,1.05);m.potionMul=clampV17(m.potionMul,0.9,1.25);
-    m.critAdd=clampV17(m.critAdd,0,.08);m.evadeAdd=clampV17(m.evadeAdd,0,.07);m.curseResist=clampV17(m.curseResist,0,.75);m.lifeStealAdd=clampV17(m.lifeStealAdd,0,.06);
-    Object.keys(m.weaponTier).forEach(k=>{m.weaponTier[k]=clampV17(m.weaponTier[k],0.9,1.26);});
-
-    const names=['秘めた才','塔の癖','深層因子','裏適性','見えない才能','無言の加護','歪み補正','潜在律'];
-    m.secretName=names[h%names.length];
-    m.grade=strength>=5?'S':strength>=4?'A':strength>=3?'B':'C';
-    return m;
-  }
-
-  function installHiddenProfilesV17(){
-    if(!Array.isArray(window.JOBS)&&typeof JOBS==='undefined')return;
-    const arr=window.JOBS||JOBS;
-    arr.forEach((j,i)=>{if(j&&!j.v17Hidden)j.v17Hidden=generatedHiddenProfileV17(j,i);});
-  }
-  function mixMulV17(base,src,key,w){base[key]=base[key]*(1+((src[key]||1)-1)*w);} 
-  function mergeHiddenV17(main,sub,subWeight){
-    const m=emptyModsV17();
-    [ [main,1], [sub,subWeight||0] ].forEach(([src,w])=>{
-      if(!src||w<=0)return;
-      ['allDmgMul','physMul','magMul','ultMul','bossMul','weaponSkillMul','xpMul','goldMul','takenMul','mpCostMul','potionMul','lowHpDmgMul'].forEach(k=>mixMulV17(m,src,k,w));
-      ['dropLuck','chestLuck','shopLuck','critAdd','evadeAdd','curseResist','regenHp','regenMp','lifeStealAdd'].forEach(k=>{m[k]+=(src[k]||0)*w;});
-      Object.keys(m.weaponTier).forEach(k=>{m.weaponTier[k]=m.weaponTier[k]*(1+(((src.weaponTier&&src.weaponTier[k])||1)-1)*w);});
-      (src.hints||[]).slice(0,3).forEach(h=>addHintV17(m,h));
-    });
-    m.secretName=main&&main.secretName?main.secretName:'秘めた才';
-    m.grade=main&&main.grade?main.grade:'C';
-    return m;
-  }
-  function jobByIdV17(id){try{return (window.JOBS||JOBS).find(j=>j&&j.id===id);}catch(e){return null;}}
-  function applyHiddenToPlayerV17(p){
-    if(!p||p.v17HiddenApplied)return;
-    installHiddenProfilesV17();
-    const main=jobByIdV17(p.jobId)||jobByIdV17(G&&G.selectedJob);
-    const sub=jobByIdV17(p.secondaryJobId)||jobByIdV17(G&&G.selectedSubJob);
-    const mods=mergeHiddenV17(main&&main.v17Hidden,sub&&sub.v17Hidden,.45);
-    p.hiddenModsV17=mods;
-    p.hiddenCluesV17=(mods.hints||[]).slice(0,4);
-    p.hiddenTraitNameV17=mods.secretName;
-    p.hiddenTraitGradeV17=mods.grade;
-    p.v17HiddenApplied=true;
-
-    // 直接ステータスに見えにくい補正。数値はUIに出さない。
-    p.critRate=(p.critRate||0)+(mods.critAdd||0);
-    p.evade=(p.evade||0)+(mods.evadeAdd||0);
-    p.mpDiscount=(p.mpDiscount||1)*(mods.mpCostMul||1);
-    p.potionBonus=(p.potionBonus||1)*(mods.potionMul||1);
-    p.hpRegen=(p.hpRegen||0)+Math.round(mods.regenHp||0);
-    p.mpRegen=(p.mpRegen||0)+Math.round(mods.regenMp||0);
-    p.lifeSteal=Math.max(p.lifeSteal||0,(p.lifeSteal||0)+(mods.lifeStealAdd||0));
-    if(typeof addLog==='function')addLog(`🕯️ 隠し補正「${mods.secretName}」が発動している気がする…`,'l-i');
-  }
-  function currentWeaponTierMulV17(p,ctx){
-    const mods=p&&p.hiddenModsV17;if(!mods)return 1;
-    let best=1;
-    try{
-      const slots=[];
-      if(p.equip){slots.push(p.equip.right,p.equip.left);}else{slots.push(null);}
-      slots.forEach(id=>{
-        let it=null;
-        if(id&&typeof getEquipById==='function')it=getEquipById(p,id);
-        if(!it)return;
-        const name=String(it.n||'');
-        let tier=String(it.powerTier||it.tier||it.v10Tier||'normal');
-        if(tier==='lucky')tier='high';
-        if(name.includes('弱')||name.includes('粗悪'))tier='weak';
-        if(name.includes('上振れ'))tier='high';
-        if(name.includes('超強')||name.includes('神器')||it.ultra)tier='ultra';
-        best=Math.max(best,(mods.weaponTier&&mods.weaponTier[tier])||1);
-        if(it.weaponSkill)best=Math.max(best,(mods.weaponTier&&mods.weaponTier.skill)||1);
-      });
-    }catch(e){}
-    if(ctx==='weapon')best*=mods.weaponSkillMul||1;
-    return best;
-  }
-  function damageMulV17(ctx){
-    const p=G&&G.player,e=G&&G.enemy;if(!p||!p.hiddenModsV17)return 1;
-    const m=p.hiddenModsV17;let mul=m.allDmgMul||1;
-    if(ctx==='attack'||ctx==='phys')mul*=m.physMul||1;
-    if(ctx==='mag')mul*=m.magMul||1;
-    if(ctx==='ult')mul*=m.ultMul||1;
-    if(ctx==='weapon')mul*=m.weaponSkillMul||1;
-    if(e&&e.isBoss)mul*=m.bossMul||1;
-    mul*=currentWeaponTierMulV17(p,ctx);
-    if(p.hp&&p.maxHp&&p.hp/p.maxHp<=.35)mul*=m.lowHpDmgMul||1;
-    return clampV17(mul,.65,1.65);
-  }
-  function addStyleV17(){
-    if(document.getElementById('v17-style'))return;
-    const st=document.createElement('style');st.id='v17-style';st.textContent=`
-      .v17-hidden-card{border:0.5px dashed #7C4DFF;background:linear-gradient(180deg,rgba(124,77,255,.08),transparent);border-radius:var(--border-radius-lg);padding:9px 10px;margin-top:8px;font-size:11px;line-height:1.6;color:var(--color-text-secondary)}
-      .v17-hidden-card b{color:#3C3489}.v17-secret-chip{display:inline-block;border-radius:99px;padding:2px 7px;font-size:10px;background:#F2EEFF;color:#3C3489;margin:2px}
-      #v17-hidden-panel{margin:8px 0}.v17-clue-list{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
-      @media(max-width:820px){.v17-hidden-card{font-size:12px}.v17-secret-chip{font-size:10px}}
-    `;document.head.appendChild(st);
-  }
-  function renderHiddenTitlePanelV17(){
-    const search=document.getElementById('job-search');if(!search)return;
-    let p=document.getElementById('v17-hidden-panel');
-    if(!p){p=document.createElement('div');p.id='v17-hidden-panel';p.className='card';p.style.margin='8px 0';search.parentNode.insertBefore(p,search);}
-    const total=(window.JOBS||JOBS).filter(j=>j&&j.v17Hidden).length;
-    p.innerHTML=`<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;flex-wrap:wrap"><b>🕯️ 隠し補正</b><span class="trait-chip">${total}職ぶん生成済み</span></div>
-      <div class="muted" style="margin-top:4px">各職業に非公開の補正があります。火力・報酬・耐久・Shop運・武器適性などが少しずつ違います。</div>`;
-  }
-  function appendJobHiddenHintV17(j){
-    const det=document.getElementById('job-detail');if(!det||!j||!j.v17Hidden)return;
-    const old=document.getElementById('v17-job-hidden-card');if(old)old.remove();
-    const h=j.v17Hidden;
-    const box=document.createElement('div');box.id='v17-job-hidden-card';box.className='v17-hidden-card';
-    const clues=(h.hints||[]).slice(0,3).map(x=>`<span class="v17-secret-chip">${escV17(x)}</span>`).join('');
-    box.innerHTML=`<b>🕯️ 隠し補正の気配</b> <span class="v17-secret-chip">${escV17(h.secretName)}</span><br>
-      <span class="muted">数値は非公開。プレイ中にじわっと効くタイプ。</span><div class="v17-clue-list">${clues}</div>`;
-    det.appendChild(box);
-  }
-  function renderGameHiddenHintV17(){
-    const p=G&&G.player;if(!p||!p.hiddenModsV17)return;
-    const header=document.getElementById('p-header');if(!header)return;
-    let chip=document.getElementById('v17-hidden-chip-game');
-    if(!chip){chip=document.createElement('span');chip.id='v17-hidden-chip-game';chip.className='trait-chip';chip.style.marginLeft='4px';header.appendChild(chip);}
-    chip.textContent=`🕯️ ${p.hiddenTraitNameV17||'隠し補正'}`;
-  }
-
-  // 職業選択UIに「うわさ」だけ表示。 exactな数値は出さない。
-  const oldSelectV17=window.selectJob||((typeof selectJob==='function')?selectJob:null);
-  window.selectJob=function(id){const res=oldSelectV17&&oldSelectV17.apply(this,arguments);try{installHiddenProfilesV17();appendJobHiddenHintV17(jobByIdV17(id));}catch(e){}return res;};
-  try{selectJob=window.selectJob;}catch(e){}
-
-  // ゲーム開始時に隠し補正を付与。
-  const oldStartV17=window.startGame||((typeof startGame==='function')?startGame:null);
-  window.startGame=function(){const res=oldStartV17&&oldStartV17.apply(this,arguments);try{applyHiddenToPlayerV17(G&&G.player);if(typeof renderGame==='function')renderGame();}catch(e){console.warn('v17 start hidden error',e);}return res;};
-  try{startGame=window.startGame;}catch(e){}
-
-  // セーブ読込や途中描画でも補正漏れを防ぐ。
-  const oldRenderGameV17=window.renderGame||((typeof renderGame==='function')?renderGame:null);
-  window.renderGame=function(){try{applyHiddenToPlayerV17(G&&G.player);}catch(e){};const res=oldRenderGameV17&&oldRenderGameV17.apply(this,arguments);try{renderGameHiddenHintV17();}catch(e){}return res;};
-  try{renderGame=window.renderGame;}catch(e){}
-
-  function withCtxV17(ctx,fn,args){const old=G&&G.v17ActionCtx;try{if(G)G.v17ActionCtx=ctx;return fn&&fn.apply(this,args);}finally{if(G)G.v17ActionCtx=old;}}
-  const oldDoAtkV17=window.doAtk||((typeof doAtk==='function')?doAtk:null);
-  if(typeof oldDoAtkV17==='function'){window.doAtk=function(){return withCtxV17.call(this,'attack',oldDoAtkV17,arguments);};try{doAtk=window.doAtk;}catch(e){}}
-  const oldUseSkillV17=window.useSkill||((typeof useSkill==='function')?useSkill:null);
-  if(typeof oldUseSkillV17==='function'){window.useSkill=function(type){return withCtxV17.call(this,type==='phys'?'phys':(type==='mag'?'mag':'ult'),oldUseSkillV17,arguments);};try{useSkill=window.useSkill;}catch(e){}}
-  const oldWeaponSkillV17=window.useWeaponSkillV10||null;
-  if(typeof oldWeaponSkillV17==='function'){window.useWeaponSkillV10=function(){return withCtxV17.call(this,'weapon',oldWeaponSkillV17,arguments);};}
-  const oldSubSkillV17=window.useSecondaryJobSkillV15||null;
-  if(typeof oldSubSkillV17==='function'){window.useSecondaryJobSkillV15=function(type){return withCtxV17.call(this,type==='phys'?'phys':(type==='mag'?'mag':'ult'),oldSubSkillV17,arguments);};}
-
-  // 与ダメージ、被ダメージ、報酬に隠し補正を反映。
-  const oldApplyEnemyV17=window.applyDmgToEnemy||((typeof applyDmgToEnemy==='function')?applyDmgToEnemy:null);
-  if(typeof oldApplyEnemyV17==='function'){
-    window.applyDmgToEnemy=function(raw){
-      try{const mul=damageMulV17((G&&G.v17ActionCtx)||'attack');raw=Math.max(1,Math.round((Number(raw)||0)*mul));}catch(e){}
-      return oldApplyEnemyV17.apply(this,arguments.length? [raw] : arguments);
-    };
-    try{applyDmgToEnemy=window.applyDmgToEnemy;}catch(e){}
-  }
-  const oldApplyPlayerV17=window.applyDmgToPlayer||((typeof applyDmgToPlayer==='function')?applyDmgToPlayer:null);
-  if(typeof oldApplyPlayerV17==='function'){
-    window.applyDmgToPlayer=function(rawAtk){
-      try{const p=G&&G.player,m=p&&p.hiddenModsV17;if(m)rawAtk=Math.max(1,Math.round((Number(rawAtk)||1)*(m.takenMul||1)));}catch(e){}
-      return oldApplyPlayerV17.apply(this,[rawAtk]);
-    };
-    try{applyDmgToPlayer=window.applyDmgToPlayer;}catch(e){}
-  }
-  const oldPAtkV17=window.pAtk||((typeof pAtk==='function')?pAtk:null);
-  if(typeof oldPAtkV17==='function'){
-    window.pAtk=function(){let v=oldPAtkV17.apply(this,arguments);try{const p=G&&G.player,m=p&&p.hiddenModsV17;if(p&&m&&p.curses)v+=Math.round((p.curses||0)*2*(m.curseResist||0));}catch(e){}return Math.max(1,Math.round(v));};
-    try{pAtk=window.pAtk;}catch(e){}
-  }
-  const oldPDefV17=window.pDef||((typeof pDef==='function')?pDef:null);
-  if(typeof oldPDefV17==='function'){
-    window.pDef=function(){let v=oldPDefV17.apply(this,arguments);try{const p=G&&G.player,m=p&&p.hiddenModsV17;if(p&&m&&p.curses)v+=Math.round((p.curses||0)*1.5*(m.curseResist||0));}catch(e){}return Math.max(0,Math.round(v));};
-    try{pDef=window.pDef;}catch(e){}
-  }
-  const oldKillV17=window.killEnemy||((typeof killEnemy==='function')?killEnemy:null);
-  if(typeof oldKillV17==='function'){
-    window.killEnemy=function(){
-      const p=G&&G.player;const before=p?{gold:Number(p.gold)||0,xp:Number(p.xp)||0}:null;
-      const res=oldKillV17.apply(this,arguments);
-      try{
-        const m=p&&p.hiddenModsV17;if(p&&m&&before){
-          const gd=(Number(p.gold)||0)-before.gold, xd=(Number(p.xp)||0)-before.xp;
-          const eg=Math.max(0,Math.round(gd*((m.goldMul||1)-1)));
-          const ex=Math.max(0,Math.round(xd*((m.xpMul||1)-1)));
-          if(eg>0){p.gold+=eg;addLog(`🕯️ 隠し補正でG+${eg}`,'l-i');}
-          if(ex>0){p.xp+=ex;addLog(`🕯️ 隠し補正でXP+${ex}`,'l-i');if(typeof checkLevelUp==='function')checkLevelUp();}
-        }
-      }catch(e){}
-      return res;
-    };
-    try{killEnemy=window.killEnemy;}catch(e){}
-  }
-  const oldTryChestV17=window.tryChestDrop||((typeof tryChestDrop==='function')?tryChestDrop:null);
-  if(typeof oldTryChestV17==='function'){
-    window.tryChestDrop=function(){
-      const p=G&&G.player,m=p&&p.hiddenModsV17;
-      const res=oldTryChestV17.apply(this,arguments);
-      try{
-        if(m&&(m.dropLuck||m.chestLuck)&&typeof giveChest==='function'&&Math.random()<clampV17((m.dropLuck||0)+(m.chestLuck||0),0,.18)){
-          giveChest();addLog('🕯️ 隠し補正で宝箱を追加発見！','l-i');
-        }
-      }catch(e){}
-      return res;
-    };
-    try{tryChestDrop=window.tryChestDrop;}catch(e){}
-  }
-  const oldShopStockV17=window.generateShopStock||((typeof generateShopStock==='function')?generateShopStock:null);
-  if(typeof oldShopStockV17==='function'){
-    window.generateShopStock=function(){
-      let items=oldShopStockV17.apply(this,arguments)||[];
-      try{
-        const p=G&&G.player,m=p&&p.hiddenModsV17;
-        if(m&&(m.shopLuck||0)>0){
-          const chance=clampV17(m.shopLuck,0,.20);
-          if(Math.random()<chance&&typeof makeOrbItem==='function')items.unshift(makeOrbItem('large'));
-          if(Math.random()<chance&&typeof makeEquip==='function')items.unshift(makeEquip('weapon',p.floor||1));
-          items=items.slice(0,22);
-        }
-      }catch(e){}
-      return items;
-    };
-    try{generateShopStock=window.generateShopStock;}catch(e){}
-  }
-
-  // 初期化。
-  const oldInitV17=window.initTitle||((typeof initTitle==='function')?initTitle:null);
-  window.initTitle=function(){const res=oldInitV17&&oldInitV17.apply(this,arguments);try{installHiddenProfilesV17();addStyleV17();renderHiddenTitlePanelV17();const title=document.querySelector('#scr-title h2');if(title)title.textContent='🏰 無限の塔 v17';const note=document.getElementById('v12-title-note');if(note)note.innerHTML='📱 <b>v17</b>：全職業に隠しステータス/隠し補正を追加。火力・報酬・耐久・Shop運・武器適性が職ごとに違います。';}catch(e){console.warn('v17 init error',e);}return res;};
-  try{initTitle=window.initTitle;}catch(e){}
-
-  window.installHiddenProfilesV17=installHiddenProfilesV17;
-  window.applyHiddenToPlayerV17=applyHiddenToPlayerV17;
-  try{installHiddenProfilesV17();addStyleV17();renderHiddenTitlePanelV17();const title=document.querySelector('#scr-title h2');if(title)title.textContent='🏰 無限の塔 v17';}catch(e){}
-})();
-</script>
-
-
+<!-- removed heavy title/adaptive/hidden-modifier script for v29 lightweight build -->
+<!-- removed heavy title/adaptive/hidden-modifier script for v29 lightweight build -->
+<!-- removed heavy title/adaptive/hidden-modifier script for v29 lightweight build -->
 <script>
 /* === v18追加アップデート: 武器の上振れ/超強などの露骨な表記を非表示化 === */
 (()=>{
@@ -7926,5 +6835,317 @@ initTitle();
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initTitleLite,{once:true});
   else initTitleLite();
+})();
+</script>
+
+
+<script>
+/* === v29: extreme lightweight shop + auto growth + vague skill costs === */
+(()=>{
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+  const ensure=p=>{try{if(p&&typeof ensureV3State==='function')ensureV3State(p);}catch(e){} return p;};
+  const screen=()=>document.querySelector('.scr.on')?.id||'';
+
+  function addV29Style(){
+    if($('v29-style'))return;
+    const st=document.createElement('style');st.id='v29-style';
+    st.textContent=`
+      #scr-stats{display:none!important}
+      button[onclick*="openStats"], .v29-hide{display:none!important}
+      #shop-grid{grid-template-columns:repeat(auto-fill,minmax(138px,1fr))!important;gap:7px!important;contain:layout style;}
+      #shop-grid .card{padding:9px!important;min-height:92px;content-visibility:auto;contain-intrinsic-size:96px 150px;}
+      #shop-material-tools,#v11-shop-rate-note{display:none!important}
+      .v29-kind{display:inline-block;font-size:10px;border-radius:99px;padding:2px 7px;background:var(--color-background-secondary);color:var(--color-text-secondary);margin-bottom:4px}
+      .v29-price{font-size:12px;color:#BA7517;font-weight:500;margin-top:5px}
+      .sk-ct{min-width:46px;text-align:right;white-space:nowrap}
+      @media(max-width:620px){#shop-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.game-wrap{grid-template-columns:1fr!important}.side-col{display:grid;grid-template-columns:1fr;}}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function costWord(cost){
+    cost=Math.max(0,Number(cost)||0);
+    if(cost<=0)return 'なし';
+    if(cost<=10)return '極小';
+    if(cost<=20)return '小';
+    if(cost<=35)return '中';
+    if(cost<=55)return '大';
+    return '極大';
+  }
+
+  function itemKindLabel(item){
+    if(!item)return '品物';
+    if(item.t==='equip'){
+      const s=item.eq&&item.eq.slot;
+      if(s==='weapon')return '武器';
+      if(s==='head'||s==='body'||s==='feet')return '防具';
+      return '装備';
+    }
+    if(item.t==='skill')return '技書';
+    if(item.t==='orb'||item.t==='orb2')return 'オーブ';
+    if(item.t==='potion')return '回復薬';
+    if(item.t==='key')return '鍵';
+    if(item.t==='material')return '素材';
+    return '品物';
+  }
+
+  function vagueEquipDesc(eq){
+    if(!eq)return '装備品。';
+    const slot=eq.slot==='weapon'?'武器':(eq.slot==='head'||eq.slot==='body'||eq.slot==='feet'?'防具':'装飾品');
+    const rare=(eq.rarJp||'ふつう').replace(/超上振れ|超強|上振れ/g,'珍品');
+    return `${slot} / ${rare}`;
+  }
+
+  function potionDescById(id){
+    const m={p20:'小回復',p35:'回復',p50:'大回復',p75:'特大回復',p100:'全快級'};
+    return m[id]||'回復';
+  }
+
+  function makeOrbLite(kind,rank){
+    const f=(G&&G.player&&G.player.floor)||1;
+    const kinds={atk:'攻撃強化',def:'防御強化',hpdrain:'吸収',mpdrain:'魔力回収',crit:'会心',luck:'幸運'};
+    const ranks={micro:'極小',small:'小',mid:'中',large:'大',huge:'極大'};
+    kind=kind||pick(Object.keys(kinds));
+    rank=rank||pick(['micro','small','small','mid','mid','large','huge']);
+    const price={micro:60,small:95,mid:145,large:230,huge:380}[rank]+f*rnd(4,9);
+    return {t:'orb',orb:{kind,rank},n:`スキルオーブ：${kinds[kind]}【${ranks[rank]}】`,d:'装着すると何かが伸びる。',c:price};
+  }
+
+  function makeEquipLite(slotType){
+    const f=(G&&G.player&&G.player.floor)||1;
+    let eq=null;
+    try{eq=makeEquip(slotType,f);}catch(e){}
+    if(!eq){eq={id:'it'+Date.now()+Math.random(),slot:slotType==='weapon'?'weapon':'body',n:slotType==='weapon'?'名もなき武器':'名もなき防具',rarJp:'コモン',stats:{}};}
+    // 表示名だけ整える。性能は内部に残す。
+    if(eq.n)eq.n=String(eq.n).replace(/超上振れ|超強|上振れ/g,'珍しい');
+    return {t:'equip',n:eq.n,d:vagueEquipDesc(eq),c:Math.round(45+f*6+((eq.stats&&eq.stats.atk)||0)*3+((eq.stats&&eq.stats.def)||0)*4),eq};
+  }
+
+  function makePotionLite(id,qty){
+    const f=(G&&G.player&&G.player.floor)||1;
+    const defs=(typeof POTION_DEF!=='undefined'?POTION_DEF:[]);
+    const po=defs.find(x=>x.id===id)||pick(defs)||{id:'p35',jp:'回復薬'};
+    return {t:'potion',pid:po.id,qty:qty||1,n:`${po.jp}${qty&&qty>1?'×'+qty:''}`,d:potionDescById(po.id),c:18+f*2+({p20:0,p35:20,p50:55,p75:105,p100:180}[po.id]||25)};
+  }
+
+  function makeKeyLite(color){
+    const f=(G&&G.player&&G.player.floor)||1;
+    const colors=(typeof ADV_COLORS!=='undefined'?ADV_COLORS:['銅','銀','金','レインボー']);
+    const icons=(typeof ADV_COLOR_ICON!=='undefined'?ADV_COLOR_ICON:{});
+    color=color||pick(colors);
+    const rank=Math.max(0,colors.indexOf(color));
+    return {t:'key',color,n:`${icons[color]||'🔑'} ${color}の鍵`,d:'同じ色の宝箱に使う。',c:30+f*3+rank*55};
+  }
+
+  function makeSkillCardLite(target,kind){
+    const f=(G&&G.player&&G.player.floor)||1;
+    const jp={phys:'物理',mag:'魔法',ult:'奥義'}[target]||'技';
+    if(kind==='cost')return {t:'skill',target,kind,n:`${jp}の省エネ書`,d:'消費感が少し軽くなる。',c:70+f*6};
+    return {t:'skill',target,kind:'power',n:`${jp}の強化書`,d:'技のキレが増す。',c:90+f*8};
+  }
+
+  window.generateShopStock=function(){
+    const p=ensure(G&&G.player);const f=(p&&p.floor)||1;
+    const pool=[];
+    // 必ずだいたい全部のジャンルが混ざるようにする。
+    for(let i=0;i<6;i++)pool.push(makeEquipLite(i<4?'weapon':pick(['armor','accessory'])));
+    for(let i=0;i<4;i++)pool.push(makeEquipLite(pick(['armor','accessory'])));
+    ['phys','mag','ult'].forEach(t=>{pool.push(makeSkillCardLite(t,'power'));pool.push(makeSkillCardLite(t,'cost'));});
+    for(let i=0;i<7;i++)pool.push(makeOrbLite());
+    pool.push(makePotionLite('p20',2),makePotionLite('p35',2),makePotionLite('p50',1),makePotionLite('p75',1),makePotionLite('p100',1));
+    const colors=(typeof ADV_COLORS!=='undefined'?ADV_COLORS:['銅','銀','金','レインボー']);
+    colors.forEach(c=>pool.push(makeKeyLite(c)));
+    pool.push({t:'material',mat:'万能素材',qty:rnd(3,7),n:'素材袋',d:'鍛冶に使えそう。',c:35+f*3});
+    pool.push({t:'material',mat:'希少な結晶素材',qty:1,n:'希少素材袋',d:'いい素材の気配。',c:110+f*7});
+    return shuffle(pool).slice(0,20);
+  };
+  try{generateShopStock=window.generateShopStock;}catch(e){}
+
+  window.renderShop=function(){
+    addV29Style();
+    const p=ensure(G&&G.player); if(!p)return;
+    const gold=$('sh-gold'); if(gold)gold.textContent=p.gold;
+    if(!G.shopStock||!Array.isArray(G.shopStock)||G.shopStock.length<20)G.shopStock=window.generateShopStock();
+    const grid=$('shop-grid'); if(!grid)return;
+    const html=G.shopStock.map((item,idx)=>{
+      const sold=item&&item.sold;
+      return `<div class="card" data-shop-idx="${idx}" style="cursor:${sold?'default':'pointer'};opacity:${sold?'.42':'1'}">
+        <span class="v29-kind">${esc(itemKindLabel(item))}</span>
+        <div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">${sold?'✅ ':''}${esc(item&&item.n)}</div>
+        <div class="muted" style="margin-top:3px">${esc(item&&item.d)}</div>
+        <div class="v29-price">💰 ${esc(item&&item.c)}G</div>
+      </div>`;
+    }).join('');
+    grid.innerHTML=html;
+    if(!grid.dataset.v29Click){
+      grid.dataset.v29Click='1';
+      grid.addEventListener('click',ev=>{
+        const card=ev.target.closest('[data-shop-idx]');
+        if(!card)return;
+        const idx=Number(card.dataset.shopIdx);
+        if(Number.isFinite(idx))window.buyShopItemV3(idx);
+      });
+    }
+    const mat=$('shop-material-tools'); if(mat)mat.remove();
+    const note=$('v11-shop-rate-note'); if(note)note.remove();
+    let reroll=$('shop-reroll-btn');
+    const leaveBtn=document.querySelector('#scr-shop .btn-p');
+    if(!reroll&&leaveBtn){reroll=document.createElement('button');reroll.id='shop-reroll-btn';reroll.className='btn';reroll.style='width:100%;margin-top:8px;padding:8px';leaveBtn.parentNode.insertBefore(reroll,leaveBtn);}
+    if(reroll){const cost=35+p.floor*2;reroll.textContent=`🔄 商品入れ替え（${cost}G）`;reroll.onclick=()=>{if(p.gold<cost){window.addLog&&addLog('お金が足りない。','l-w');return;}p.gold-=cost;G.shopStock=window.generateShopStock();window.renderShop();};}
+    if(leaveBtn){leaveBtn.onclick=()=>window.leaveShop?window.leaveShop():null;leaveBtn.textContent=(G&&G.shopPreboss)?'ボス選択に戻る':'次の階層へ進む';}
+  };
+  try{renderShop=window.renderShop;}catch(e){}
+
+  const oldBuy=window.buyShopItemV3||((typeof buyShopItemV3==='function')?buyShopItemV3:null);
+  window.buyShopItemV3=function(idx){
+    const item=G&&G.shopStock&&G.shopStock[idx]; if(!item||item.sold)return;
+    const p=ensure(G&&G.player); if(!p)return;
+    if(p.gold<item.c){addLog('お金が足りない。','l-w');return;}
+    p.gold-=item.c; item.sold=true;
+    try{
+      if(item.t==='equip'){p.inventory.equipment.push(item.eq);addLog(`${item.n}を手に入れた。`,'l-i');}
+      else if(item.t==='skill'){if(typeof upgradeSkill==='function')upgradeSkill(item.target,item.kind);addLog(`${item.n}を読んだ。`,'l-s');}
+      else if(item.t==='orb'||item.t==='orb2'){if(typeof window.applyOrb==='function')window.applyOrb(item.orb||item.orbKind||item.orb);addLog(`${item.n}を装着した。`,'l-s');}
+      else if(item.t==='potion'){p.inventory.potions[item.pid]=(p.inventory.potions[item.pid]||0)+(item.qty||1);addLog(`${item.n}を買った。`,'l-h');}
+      else if(item.t==='key'){p.inventory.keys[item.color]=(p.inventory.keys[item.color]||0)+1;addLog(`${item.color}の鍵を入手。`,'l-i');}
+      else if(item.t==='material'){p.materials[item.mat]=(p.materials[item.mat]||0)+(item.qty||1);addLog('素材を入手。','l-i');}
+      else if(oldBuy)return oldBuy(idx);
+      if(typeof syncEquipmentStats==='function')syncEquipmentStats(p);
+      if(typeof recalcVitals==='function')recalcVitals(p);
+    }catch(e){console.warn('buy failed',e);}
+    window.renderShop(); try{renderGame();}catch(e){}
+  };
+  try{buyShopItemV3=window.buyShopItemV3;}catch(e){}
+
+  const oldShowShop=window.showShop||((typeof showShop==='function')?showShop:null);
+  window.showShop=function(preboss){
+    addV29Style();
+    const p=ensure(G&&G.player); if(!p&&oldShowShop)return oldShowShop(preboss);
+    G.shopPreboss=!!preboss;
+    G.shopStock=window.generateShopStock();
+    window.renderShop();
+    if(typeof go==='function')go('shop');
+  };
+  try{showShop=window.showShop;}catch(e){}
+
+  function autoWeights(p){
+    const w={HP:1.1,MP:1,STR:1,DEX:.8,AGI:.8,INT:1,VIT:1,LUK:.45};
+    try{
+      const j=(typeof JOBS!=='undefined'&&JOBS.find(x=>x.id===p.jobId))||null;
+      if(j){
+        if(j.hp>=105){w.HP+=1.8;w.VIT+=1.0;}
+        if(j.mp>=70){w.MP+=1.5;w.INT+=1.7;}
+        if(j.atk>=16){w.STR+=2.0;w.DEX+=.6;}
+        if(j.def>=10){w.VIT+=1.7;w.HP+=.6;}
+        if(j.spd>=13){w.AGI+=1.7;w.DEX+=1.0;}
+      }
+    }catch(e){}
+    return w;
+  }
+  function weightedPick(w){
+    const entries=Object.entries(w);let sum=entries.reduce((a,[,v])=>a+v,0),r=Math.random()*sum;
+    for(const [k,v] of entries){r-=v;if(r<=0)return k;}return entries[0][0];
+  }
+  function autoAllocate(p,points){
+    p=ensure(p); if(!p)return;
+    points=Math.max(0,Number(points)||0);
+    if(!p.stats)p.stats={HP:0,MP:0,STR:0,DEX:0,AGI:0,INT:0,VIT:0,LUK:0};
+    const w=autoWeights(p);
+    for(let i=0;i<points;i++){const k=weightedPick(w);p.stats[k]=(p.stats[k]||0)+1;}
+    p.statPoints=0;
+    try{if(typeof syncEquipmentStats==='function')syncEquipmentStats(p);if(typeof recalcVitals==='function')recalcVitals(p);}catch(e){}
+  }
+  function consumePendingSP(){const p=G&&G.player;if(p&&p.statPoints>0)autoAllocate(p,p.statPoints);}
+
+  window.checkLevelUp=function(){
+    const p=ensure(G&&G.player); if(!p)return;
+    while(p.xp>=p.xpNext){
+      p.xp-=p.xpNext;p.lv++;p.xpNext=Math.round(p.xpNext*1.42);
+      p.baseMaxHp=(p.baseMaxHp||p.maxHp||100)+10;
+      p.baseMaxMp=(p.baseMaxMp||p.maxMp||50)+5;
+      p.baseAtk=(p.baseAtk||p.atk||10)+1;
+      p.baseDef=(p.baseDef||p.def||5)+1;
+      autoAllocate(p,3);
+      p.hp=Math.min(p.maxHp,p.hp+20);p.mp=Math.min(p.maxMp,p.mp+10);
+      addLog(`🎉 Lv.${p.lv}！ 少し強くなった。`,'l-h');
+    }
+  };
+  try{checkLevelUp=window.checkLevelUp;}catch(e){}
+
+  window.renderSkills=function(){
+    const p=ensure(G&&G.player); const sl=$('skill-list'); if(!p||!sl)return;
+    const skills=[
+      {sk:p.phys,type:'phys',tag:'物理',cls:'tag-phys'},
+      {sk:p.mag,type:'mag',tag:'魔法',cls:'tag-mag'},
+      {sk:p.ult,type:'ult',tag:'奥義',cls:'tag-ult',cd:p.ultCd},
+    ];
+    sl.innerHTML=skills.map(({sk,type,tag,cls,cd})=>{
+      const cost=Math.round(((sk&&sk.cost)||0)*((p&&p.mpDiscount)||1));
+      const can=(cost<=0||p.mp>=cost)&&((cd===undefined||cd===0)&&!!G.enemy);
+      const cdTxt=cd>0?` 待ち:${cd}`:'';
+      return `<button class="sk-btn" data-skill="${type}" ${can?'':'disabled'}>
+        <span><span class="tag ${cls}" style="margin-right:4px">${tag}</span>${esc(sk&&sk.n)}<br><span class="muted">${esc((sk&&sk.d)||'')}</span></span>
+        <span class="sk-ct">消費:${costWord(cost)}${cdTxt}</span>
+      </button>`;
+    }).join('');
+    if(!sl.dataset.v29Click){sl.dataset.v29Click='1';sl.addEventListener('click',ev=>{const b=ev.target.closest('[data-skill]');if(b&&!b.disabled&&typeof useSkill==='function')useSkill(b.dataset.skill);});}
+  };
+  try{renderSkills=window.renderSkills;}catch(e){}
+
+  const oldRenderGame=window.renderGame||((typeof renderGame==='function')?renderGame:null);
+  window.renderGame=function(){
+    addV29Style();consumePendingSP();
+    const r=oldRenderGame&&oldRenderGame.apply(this,arguments);
+    try{
+      // oldRenderGame may call old skill renderer in some builds; force the light one.
+      window.renderSkills();
+      document.querySelectorAll('#p-stats .stat-item').forEach(el=>{if(/^SP\b|ステータスポイント|成長点/.test(el.textContent.trim()))el.remove();});
+      const eq=$('equip-info');
+      if(eq){eq.querySelectorAll('button').forEach(b=>{if(/ステ振り|育成|SP/.test(b.textContent))b.remove();});}
+      document.querySelectorAll('button').forEach(b=>{if(/ステ振り|通常SP/.test(b.textContent))b.classList.add('v29-hide');});
+      const chip=$('v17-hidden-chip-game'); if(chip)chip.remove();
+    }catch(e){}
+    return r;
+  };
+  try{renderGame=window.renderGame;}catch(e){}
+
+  window.openStats=function(){consumePendingSP();addLog('成長は自動で反映される。','l-i');try{renderGame();}catch(e){}};
+  try{openStats=window.openStats;}catch(e){}
+  window.renderStats=function(){
+    const box=$('stat-grid-alloc'), pt=$('stat-points');
+    if(pt)pt.textContent='自動';
+    if(box)box.innerHTML='<div class="card">成長は自動で振り分けられる。</div>';
+  };
+  try{renderStats=window.renderStats;}catch(e){}
+
+  const oldAddLog=window.addLog||((typeof addLog==='function')?addLog:null);
+  window.addLog=function(msg,cls){
+    let s=String(msg??'');
+    if(/隠し補正/.test(s)){
+      if(/G[+＋]|XP[+＋]|宝箱/.test(s))return;
+      s=s.replace(/🕯️\s*/g,'').replace(/隠し補正/g,'不思議な気配');
+    }
+    s=s.replace(/ステータスポイント\+?\d*/g,'成長').replace(/通常SP/g,'成長');
+    return oldAddLog?oldAddLog(s,cls):undefined;
+  };
+  try{addLog=window.addLog;}catch(e){}
+
+  // localStorageに残っていた通常SPも起動時に吸収。
+  const oldLoad=window.loadGame||((typeof loadGame==='function')?loadGame:null);
+  window.loadGame=function(){const r=oldLoad&&oldLoad.apply(this,arguments);try{consumePendingSP();renderGame();}catch(e){}return r;};
+  try{loadGame=window.loadGame;}catch(e){}
+
+  const oldStart=window.startGame||((typeof startGame==='function')?startGame:null);
+  window.startGame=function(){const r=oldStart&&oldStart.apply(this,arguments);try{consumePendingSP();renderGame();}catch(e){}return r;};
+  try{startGame=window.startGame;}catch(e){}
+
+  addV29Style();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{addV29Style();try{if(screen()==='shop')renderShop();}catch(e){}},{once:true});
+  else {addV29Style();try{if(screen()==='shop')renderShop();}catch(e){}}
 })();
 </script>
