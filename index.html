@@ -7744,10 +7744,9 @@ initTitle();
     try{eval(name+'=window[name]');}catch(e){}
   }
 
-  ['initTitle','renderJobGrid','filterJobs','renderGame','renderShop','renderInventory','renderStats','openStats','openInventory','showStageSelect','showShop','showPostStageRoom','advanceFloor','goNextRoomV8','goNextRoomV11','loadGame','startGame'].forEach(fn=>wrapV25(fn,()=>setTimeout(optimizeScreenV25,0)));
+  ['initTitle','renderJobGrid','filterJobs','openStats','openInventory','showStageSelect','showShop','showPostStageRoom','loadGame','startGame'].forEach(fn=>wrapV25(fn,()=>setTimeout(optimizeScreenV25,0)));
   addStyleV25();resetExpansionOnSearchV25();installQuickActionsV25();
   setTimeout(()=>{optimizeScreenV25();resetExpansionOnSearchV25();installQuickActionsV25();},0);
-  setTimeout(optimizeScreenV25,250);
 })();
 </script>
 <!-- v26 mutation-observer title cleaner removed by lightweight build -->
@@ -8052,10 +8051,10 @@ initTitle();
     if(!reroll&&leaveBtn){reroll=document.createElement('button');reroll.id='shop-reroll-btn';reroll.className='btn';reroll.style='width:100%;margin-top:8px;padding:8px';leaveBtn.parentNode.insertBefore(reroll,leaveBtn);}
     if(reroll){const cost=35+(p.floor||1)*2;reroll.textContent=`🔄 商品入れ替え（${cost}G）`;reroll.onclick=()=>{if(p.gold<cost){addLog('お金が足りない。','l-w');return;}p.gold-=cost;G.shopStock=freshStock();window.renderShop();};}
     if(leaveBtn){leaveBtn.onclick=()=>window.leaveShop&&window.leaveShop();leaveBtn.textContent=(G&&G.shopPreboss)?'ボス選択に戻る':'次の階層へ進む';}
-    fixShopView();requestAnimationFrame(fixShopView);setTimeout(fixShopView,30);setTimeout(fixShopView,160);
+    fixShopView();
   };
   try{renderShop=window.renderShop;}catch(e){}
-  window.showShop=function(preboss){addStyle();if(!G)return;G.shopPreboss=!!preboss;G.shopStock=freshStock();if(typeof go==='function')go('shop');window.renderShop();setTimeout(()=>{if(screen()==='scr-shop')window.renderShop();},80);};
+  window.showShop=function(preboss){addStyle();if(!G)return;G.shopPreboss=!!preboss;G.shopStock=freshStock();if(typeof go==='function')go('shop');window.renderShop();};
   try{showShop=window.showShop;}catch(e){}
   window.buyShopItemV3=function(idx){
     const p=ensureP();const item=G&&G.shopStock&&G.shopStock[idx];if(!p||!item||item.sold)return;
@@ -8088,7 +8087,7 @@ initTitle();
     document.querySelectorAll('#e-mpv,#e-mpb,#e-mp,#e-mp-v,.enemy-mp,.enemy-mana').forEach(x=>x.remove());
   }
   const oldRenderGame=window.renderGame||((typeof renderGame==='function')?renderGame:null);
-  window.renderGame=function(){const r=oldRenderGame&&oldRenderGame.apply(this,arguments);try{cleanEnemyUI();if(typeof renderSkills==='function')renderSkills();}catch(e){}return r;};
+  window.renderGame=function(){const r=oldRenderGame&&oldRenderGame.apply(this,arguments);try{cleanEnemyUI();}catch(e){}return r;};
   try{renderGame=window.renderGame;}catch(e){}
 
   const oldAddLog=window.addLog||((typeof addLog==='function')?addLog:null);
@@ -8250,7 +8249,7 @@ initTitle();
   }
   function hideNumberUI(){
     consumeOldSP();renderEnemyPartyBars();renderPlayerMystery();renderFloorMystery();renderSkillsMystery();
-    ['job-count','save-notice','cl-body','over-body','stage-grid','shop-grid','equip-info','forge-box','chest-box','inv-grid','eq-slots','skill-list','job-detail','quick-actions','stat-grid-alloc'].forEach(id=>sanitizeTextNodes($v26(id)));
+    ['job-count','save-notice','cl-body','over-body','equip-info','forge-box','skill-list','job-detail','quick-actions','stat-grid-alloc'].forEach(id=>sanitizeTextNodes($v26(id)));
     document.querySelectorAll('#scr-title [id*="hidden"],#v17-hidden-panel,#v17-job-hidden-card,#v17-hidden-chip-game,.v17-secret-chip').forEach(x=>x.remove());
   }
   function drawJobDetail(j){
@@ -8323,7 +8322,7 @@ initTitle();
   }
   const oldRenderSkills=window.renderSkills||((typeof renderSkills==='function')?renderSkills:null);
   if(typeof oldRenderSkills==='function'){
-    window.renderSkills=function(){const r=oldRenderSkills.apply(this,arguments);renderSkillsMystery();sanitizeTextNodes($v26('skill-list'));return r;};
+    window.renderSkills=function(){const r=oldRenderSkills.apply(this,arguments);renderSkillsMystery();return r;};
     try{renderSkills=window.renderSkills;}catch(e){}
   }
   const oldSelect=window.selectJob||((typeof selectJob==='function')?selectJob:null);
@@ -8341,7 +8340,7 @@ initTitle();
   const oldOpenStats=window.openStats||((typeof openStats==='function')?openStats:null);
   window.openStats=function(){try{if(oldOpenStats)oldOpenStats.apply(this,arguments);else if(typeof go==='function')go('stats');}catch(e){try{go('stats');}catch(_){} }renderStatsAuto();};try{openStats=window.openStats;}catch(e){}
   window.allocateStat=function(){consumeOldSP();renderStatsAuto();try{renderGame();}catch(e){}};try{allocateStat=window.allocateStat;}catch(e){}
-  ['showStageSelect','renderShop','renderInventory','showEvent','showClear','gameOver','updateQuickActions','openInventory','loadGame','startGame'].forEach(fn=>{
+  ['showStageSelect','showEvent','showClear','gameOver','updateQuickActions','openInventory','loadGame','startGame'].forEach(fn=>{
     const old=window[fn]||((typeof globalThis!=='undefined')?globalThis[fn]:null);
     if(typeof old==='function'){
       window[fn]=function(){const r=old.apply(this,arguments);setTimeout(()=>{try{hideNumberUI();}catch(e){}},0);return r;};
@@ -8349,5 +8348,115 @@ initTitle();
     }
   });
   setTimeout(()=>{try{hideNumberUI();}catch(e){}},0);
+})();
+</script>
+
+<script>
+/* === v32: UIほぼそのまま軽量化パッチ === */
+(()=>{
+  'use strict';
+  const $=id=>document.getElementById(id);
+  function addLiteStyle(){
+    if($('v32-lite-style'))return;
+    const st=document.createElement('style');st.id='v32-lite-style';st.textContent=`
+      *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}
+      .quick-actions,#act-main,.stage-card,.jcard,.btn,.card{backdrop-filter:none!important;box-shadow:none!important;}
+      .stage-card:hover,.btn:active{transform:none!important;}
+      .hpf{transition:none!important;}
+      #quick-actions{display:none!important;}
+      #p-hpv,#p-mpv,#e-hpv,#e-atk-v{font-variant-numeric:normal!important;}
+    `;document.head.appendChild(st);
+  }
+  function costWord(c){c=Number(c)||0;return c<=0?'なし':c<=10?'極小':c<=22?'小':c<=40?'中':c<=58?'大':'極大';}
+  function cleanRates(){
+    document.querySelectorAll('.v11-rate').forEach(x=>x.remove());
+    document.querySelectorAll('#room-text,#e-tags,#save-notice,#stage-sub,#over-body,#cl-body').forEach(el=>{
+      if(!el)return;
+      el.innerHTML=el.innerHTML
+        .replace(/Shop出現率UP：[^<。！!]*(?:。)?/g,'')
+        .replace(/Shop出現率アップ中/g,'')
+        .replace(/🏪Shop\s*約?\d+%\s*\/\s*⚒️鍛冶屋\s*約?\d+%\s*\/\s*🎁宝部屋\s*約?\d+%/g,'')
+        .replace(/部屋抽選は\s*。?/g,'');
+    });
+  }
+  function cleanBars(){
+    const p=window.G&&G.player,e=window.G&&G.enemy;
+    const ph=$('p-hpv'),pm=$('p-mpv'),eh=$('e-hpv'),ea=$('e-atk-v');
+    if(ph)ph.textContent='';
+    if(pm)pm.textContent='';
+    if(eh)eh.textContent='';
+    if(ea&&ea.parentElement)ea.parentElement.style.display='none';
+    if(p){
+      const hb=$('p-hpb'),mb=$('p-mpb');
+      if(hb)hb.style.width=Math.max(0,Math.min(100,((p.hp||0)/(p.maxHp||1))*100))+'%';
+      if(mb)mb.style.width=Math.max(0,Math.min(100,((p.mp||0)/(p.maxMp||1))*100))+'%';
+      if(p.statPoints)p.statPoints=0;
+    }
+    if(e){const eb=$('e-hpb');if(eb)eb.style.width=Math.max(0,Math.min(100,((e.hp||0)/(e.maxHp||1))*100))+'%';}
+    document.querySelectorAll('#e-mpv,#e-mpb,#e-mp,#e-mp-v,.enemy-mp,.enemy-mana').forEach(x=>x.remove());
+  }
+  function cleanSkills(){
+    const p=window.G&&G.player;if(!p)return;
+    const skills=[p.phys,p.mag,p.ult];
+    document.querySelectorAll('#skill-list .sk-btn').forEach((btn,i)=>{
+      const sk=skills[i]||{};const cost=Math.round((Number(sk.cost)||0)*(Number(p.mpDiscount)||1));
+      const ct=btn.querySelector('.sk-ct');if(ct)ct.textContent='消費:'+costWord(cost)+(i===2&&p.ultCd>0?' / 待機中':'');
+    });
+  }
+  const STAT_KEYS=['HP','MP','STR','DEX','AGI','INT','VIT','LUK'];
+  const STAT_NAME={HP:'生命',MP:'魔力',STR:'力',DEX:'技',AGI:'身軽さ',INT:'知性',VIT:'耐久',LUK:'運'};
+  function readMeta(){try{return JSON.parse(localStorage.getItem('itrl_meta_v3')||'{}')||{};}catch(e){return {};}}
+  function saveMeta(m){try{localStorage.setItem('itrl_meta_v3',JSON.stringify(m||{}));}catch(e){}}
+  function permOpen(m){m=m||readMeta();return !!(m.permUnlocked||(Number(m.bestFloor)||0)>100||(Number(m.permPoints)||0)>0||(m.permStats&&Object.values(m.permStats).some(v=>(Number(v)||0)>0)));}
+  function permCost(m,k){const v=Number(m&&m.permStats&&m.permStats[k])||0;return 1+Math.floor(v/2);}
+  function renderPermStats(){
+    const m=readMeta();if(!m.permStats)m.permStats={};STAT_KEYS.forEach(k=>{if(m.permStats[k]===undefined)m.permStats[k]=0;});
+    const sp=$('stat-points'),grid=$('stat-grid-alloc'),title=document.querySelector('#scr-stats h2');
+    if(title)title.textContent='🌟 深層成長';
+    if(sp)sp.textContent=String(Number(m.permPoints)||0);
+    if(!grid)return;
+    grid.className='screen-grid';grid.innerHTML='';
+    const head=document.createElement('div');head.className='card';head.style.gridColumn='1/-1';
+    head.innerHTML='<b>死亡後の強化</b><br><span class="muted">未使用分だけ、次の冒険にも残る力を刻める。</span>';grid.appendChild(head);
+    STAT_KEYS.forEach(k=>{
+      const have=Number(m.permPoints)||0,cost=permCost(m,k),cur=Number(m.permStats[k])||0;
+      const d=document.createElement('div');d.className='v26-stat-card card';
+      d.innerHTML=`<b>${STAT_NAME[k]}</b><br><span class="muted">深まり：${cur<=0?'なし':cur<=2?'少し':cur<=5?'あり':'かなり'}</span><br><button class="btn tiny-btn btn-g" ${have<cost?'disabled':''} onclick="allocatePermStat('${k}')">刻む</button>`;
+      grid.appendChild(d);
+    });
+  }
+  function addDeathPermButton(){
+    const m=readMeta();if(!permOpen(m)||!(Number(m.permPoints)>0))return;
+    const root=$('scr-over');if(!root||root.querySelector('#v32-perm-btn'))return;
+    const btn=document.createElement('button');btn.id='v32-perm-btn';btn.className='btn btn-g';btn.style='padding:9px 20px;margin:0 6px 8px';btn.textContent='🌟 深層成長を刻む';btn.onclick=()=>window.openStats&&window.openStats();
+    const back=root.querySelector('button.btn-p');if(back&&back.parentNode)back.parentNode.insertBefore(btn,back);
+  }
+  const oldAllocPerm=window.allocatePermStat||((typeof allocatePermStat==='function')?allocatePermStat:null);
+  window.allocatePermStat=function(k){
+    const m=readMeta();if(!m.permStats)m.permStats={};STAT_KEYS.forEach(x=>{if(m.permStats[x]===undefined)m.permStats[x]=0;});
+    const cost=permCost(m,k);if((Number(m.permPoints)||0)<cost)return;
+    m.permPoints=(Number(m.permPoints)||0)-cost;m.permStats[k]=(Number(m.permStats[k])||0)+1;saveMeta(m);
+    if(window.G&&G.player){G.player.permStats=Object.assign({},m.permStats);try{if(typeof syncEquipmentStats==='function')syncEquipmentStats(G.player);if(typeof recalcVitals==='function')recalcVitals(G.player);}catch(e){}}
+    try{renderPermStats();renderGame&&renderGame();}catch(e){}
+  };
+  try{allocatePermStat=window.allocatePermStat;}catch(e){}
+  window.openStats=function(){if(typeof go==='function')go('stats');renderPermStats();};
+  try{openStats=window.openStats;}catch(e){}
+  window.renderStats=function(){renderPermStats();};
+  try{renderStats=window.renderStats;}catch(e){}
+  function cleanStatsButton(){
+    document.querySelectorAll('button').forEach(b=>{
+      const oc=b.getAttribute('onclick')||'',txt=b.textContent||'';
+      if((oc.includes('openStats')||/通常|永久SP|SP|ステ振り/.test(txt)) && !b.closest('#scr-over')){b.remove();}
+    });
+    addDeathPermButton();
+  }
+  function liteClean(){addLiteStyle();cleanRates();cleanBars();cleanSkills();cleanStatsButton();}
+  function wrap(name){
+    const old=window[name]||globalThis[name];if(typeof old!=='function'||old.__v32)return;
+    const f=function(){const r=old.apply(this,arguments);liteClean();return r;};f.__v32=true;window[name]=f;try{eval(name+'=window[name]');}catch(e){}
+  }
+  ['renderGame','renderSkills','renderShop','showShop','showPostStageRoom','showStageSelect','updateQuickActions','openInventory','renderInventory','gameOver','showClear','startGame','loadGame'].forEach(wrap);
+  addLiteStyle();setTimeout(liteClean,0);
 })();
 </script>
