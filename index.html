@@ -4427,3 +4427,225 @@ initTitle();
   }catch(e){}
 })();
 </script>
+
+
+<script>
+/* === v11追加アップデート: 次の部屋バグ修正 / Shop出現率アップ === */
+(()=>{
+  const V11_VERSION='v11_nextroom_shopfix';
+  const V11_ROOM_WEIGHTS=[
+    {type:'shop',jp:'Shop',icon:'🏪',w:9},
+    {type:'forge',jp:'鍛冶屋',icon:'⚒️',w:2},
+    {type:'treasure',jp:'宝部屋',icon:'🎁',w:1}
+  ];
+
+  function addV11Style(){
+    if(document.getElementById('v11-style'))return;
+    const st=document.createElement('style');st.id='v11-style';
+    st.textContent=`
+      .v11-next-card{border:1px solid #534AB7;background:linear-gradient(90deg,#f2f0ff,#eefaff);border-radius:var(--border-radius-lg);padding:12px;text-align:center;margin-top:8px}
+      .v11-next-card b{color:#3C3489}
+      .v11-next-card .muted{line-height:1.6}
+      .v11-rate{display:inline-block;margin-top:5px;padding:2px 7px;border-radius:999px;background:#E1F5EE;color:#085041;font-size:10px;font-weight:700}
+      .v11-next-btn{font-weight:800;box-shadow:0 2px 10px rgba(83,74,183,.2)}
+    `;
+    document.head.appendChild(st);
+  }
+  function safeV11(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+  function weightedPickV11(list){
+    const total=list.reduce((a,b)=>a+(b.w||1),0);
+    let r=Math.random()*total;
+    for(const x of list){r-=x.w||1;if(r<=0)return x;}
+    return list[0];
+  }
+  function roomRateTextV11(){
+    const total=V11_ROOM_WEIGHTS.reduce((a,b)=>a+b.w,0);
+    return V11_ROOM_WEIGHTS.map(x=>`${x.icon}${x.jp} 約${Math.round(x.w/total*100)}%`).join(' / ');
+  }
+  function defaultBattleButtonsV11(){
+    return `<button class="btn" onclick="doAtk()" id="btn-atk" style="flex:1;font-size:12px">⚔️ 攻撃</button>
+      <button class="btn" onclick="doDef()" id="btn-def" style="flex:1;font-size:12px">🛡️ 防御</button>
+      <button class="btn" onclick="usePotion()" id="btn-pot" style="flex:1;font-size:12px">🧪 薬 (<span id="pot-count">${(G&&G.player&&G.player.potions)||0}</span>)</button>
+      <button class="btn" onclick="doFlee()" id="btn-flee" style="flex:1;font-size:12px">💨 逃げる</button>`;
+  }
+  function restoreBattleActionsV11(force){
+    const act=document.getElementById('act-main');
+    if(!act)return;
+    const hasNext=(act.textContent||'').includes('次の部屋');
+    if(force||act.dataset.v8Next==='1'||act.dataset.v11Next==='1'||hasNext){
+      act.innerHTML=defaultBattleButtonsV11();
+      delete act.dataset.v8Next;
+      delete act.dataset.v11Next;
+    }
+  }
+  function showNextRoomPanelV11(){
+    addV11Style();
+    const act=document.getElementById('act-main');
+    if(act){
+      act.dataset.v11Next='1';
+      act.dataset.v8Next='1';
+      act.innerHTML=`<button class="btn btn-p v11-next-btn" onclick="goNextRoomV8()" style="width:100%;font-size:13px;padding:10px">🚪 次の部屋へ進む</button>`;
+    }
+    const sprite=document.getElementById('e-sprite');if(sprite)sprite.textContent='🚪';
+    const name=document.getElementById('e-name');if(name)name.textContent='ステージクリア！';
+    const hpv=document.getElementById('e-hpv');if(hpv)hpv.textContent=`${(G&&G.stageKills)||7}/${(G&&G.stageTotal)||7} 撃破`;
+    const hpb=document.getElementById('e-hpb');if(hpb)hpb.style.width='100%';
+    const atk=document.getElementById('e-atk-v');if(atk)atk.textContent='-';
+    const tags=document.getElementById('e-tags');
+    if(tags){
+      tags.innerHTML=`<div class="v11-next-card"><b>次の部屋へ進めます</b><br><span class="muted">ボタンを押すと Shop / 鍛冶屋 / 宝部屋 のどれかへ移動します。</span><br><span class="v11-rate">Shop出現率UP：${safeV11(roomRateTextV11())}</span><br><button class="btn btn-p v11-next-btn" onclick="goNextRoomV8()" style="margin-top:8px;width:100%">🚪 次の部屋へ</button></div>`;
+    }
+    const seg=document.getElementById('g-seg-label');if(seg)seg.textContent='ステージクリア：次の部屋へ進める';
+  }
+  function setNextRoomReadyV11(){
+    if(!G)return;
+    G.nextRoomReady=true;
+    G.stageCompletePending=true;
+    G.enemy=null;
+    G.enemies=[];
+    try{go('game');}catch(e){}
+    try{addLog('🚪 ステージクリア！「次の部屋へ」を押して進もう。Shopが一番出やすくなった。','l-s');}catch(e){}
+    try{renderGame();}catch(e){showNextRoomPanelV11();}
+    try{updateQuickActions&&updateQuickActions();}catch(e){}
+  }
+  function stageIsCompleteV11(){
+    if(!G)return false;
+    const total=G.stageTotal||7;
+    return G.stageMode==='wave' && (G.stageKills||0)>=total;
+  }
+
+  const oldShowPostRoomV11=window.showPostStageRoom||((typeof showPostStageRoom==='function')?showPostStageRoom:null);
+  window.showPostStageRoom=function(){
+    if(!G||!G.player){oldShowPostRoomV11&&oldShowPostRoomV11();return;}
+    G.nextRoomReady=false;
+    G.stageCompletePending=false;
+    G.enemy=null;
+    G.enemies=[];
+    restoreBattleActionsV11(true);
+    const picked=weightedPickV11(V11_ROOM_WEIGHTS).type;
+    G.postRoom=picked;
+    G.shopPreboss=false;
+    G.shopStock=null;
+    if(picked==='shop'&&typeof showShop==='function'){
+      try{addLog('次の部屋：Shop（出現率アップ中）','l-i');}catch(e){}
+      showShop(false);return;
+    }
+    if(picked==='forge'&&typeof showForgeRoom==='function'){
+      try{addLog('次の部屋：鍛冶屋','l-i');}catch(e){}
+      showForgeRoom();return;
+    }
+    if(typeof showTreasureRoom==='function'){
+      try{addLog('次の部屋：宝部屋','l-i');}catch(e){}
+      showTreasureRoom();return;
+    }
+    oldShowPostRoomV11&&oldShowPostRoomV11();
+  };
+  try{showPostStageRoom=window.showPostStageRoom;}catch(e){}
+
+  window.goNextRoomV8=function(){
+    if(!G||!G.player)return;
+    const canGo=!!(G.nextRoomReady||G.stageCompletePending||stageIsCompleteV11());
+    if(!canGo){
+      try{addLog('まだ次の部屋には進めない。敵を全て倒そう。','l-w');}catch(e){}
+      return;
+    }
+    window.showPostStageRoom();
+  };
+  try{goNextRoomV8=window.goNextRoomV8;}catch(e){}
+
+  const oldEncounterV11=window.encounterCleared||((typeof encounterCleared==='function')?encounterCleared:null);
+  window.encounterCleared=function(){
+    if(G&&G.stageMode==='wave'){
+      const total=G.stageTotal||7;
+      if((G.stageKills||0)>=total){
+        try{if(typeof tryChestDrop==='function')tryChestDrop();}catch(e){}
+        setNextRoomReadyV11();
+        return;
+      }
+    }
+    if(oldEncounterV11)return oldEncounterV11();
+  };
+  try{encounterCleared=window.encounterCleared;}catch(e){}
+
+  const oldRenderGameV11=window.renderGame||((typeof renderGame==='function')?renderGame:null);
+  window.renderGame=function(){
+    if(oldRenderGameV11)oldRenderGameV11();
+    if(G&&G.nextRoomReady)showNextRoomPanelV11();
+  };
+  try{renderGame=window.renderGame;}catch(e){}
+
+  const oldAdvanceFloorV11=window.advanceFloor||((typeof advanceFloor==='function')?advanceFloor:null);
+  window.advanceFloor=function(){
+    if(G){G.nextRoomReady=false;G.stageCompletePending=false;restoreBattleActionsV11(true);}
+    if(oldAdvanceFloorV11)return oldAdvanceFloorV11();
+  };
+  try{advanceFloor=window.advanceFloor;}catch(e){}
+
+  window.leaveShop=function(){
+    if(!G)return;
+    if(G.shopPreboss){G.shopStock=null;G.shopPreboss=false;restoreBattleActionsV11(true);if(typeof showStageSelect==='function')showStageSelect();return;}
+    window.advanceFloor();
+  };
+  try{leaveShop=window.leaveShop;}catch(e){}
+
+  const oldRenderShopV11=window.renderShop||((typeof renderShop==='function')?renderShop:null);
+  window.renderShop=function(){
+    if(oldRenderShopV11)oldRenderShopV11();
+    const leaveBtn=document.querySelector('#scr-shop .btn-p');
+    if(leaveBtn){
+      leaveBtn.onclick=()=>window.leaveShop();
+      leaveBtn.textContent=(G&&G.shopPreboss)?'ボス選択に戻る':'次の階層へ進む';
+    }
+    const grid=document.getElementById('shop-grid');
+    if(grid&&!document.getElementById('v11-shop-rate-note')){
+      const note=document.createElement('div');note.id='v11-shop-rate-note';note.className='surf';note.style='grid-column:1/-1;font-size:11px;line-height:1.6';
+      note.innerHTML=`🏪 <b>Shop出現率アップ中</b><br>${safeV11(roomRateTextV11())}`;
+      grid.prepend(note);
+    }
+  };
+  try{renderShop=window.renderShop;}catch(e){}
+
+  const oldShowShopV11=window.showShop||((typeof showShop==='function')?showShop:null);
+  window.showShop=function(preboss){
+    if(oldShowShopV11)oldShowShopV11(preboss);
+    try{renderShop();}catch(e){}
+  };
+  try{showShop=window.showShop;}catch(e){}
+
+  const oldUpdateQuickV11=window.updateQuickActions||((typeof updateQuickActions==='function')?updateQuickActions:null);
+  window.updateQuickActions=function(){
+    if(oldUpdateQuickV11)oldUpdateQuickV11();
+    const q=document.getElementById('quick-actions');
+    if(!q||!G||!G.player||!G.nextRoomReady)return;
+    q.style.display='flex';
+    if(!q.querySelector('.v11-next-btn')){
+      const b=document.createElement('button');
+      b.className='btn btn-p v11-next-btn';
+      b.textContent='🚪 次の部屋へ';
+      b.onclick=()=>window.goNextRoomV8();
+      q.prepend(b);
+    }
+  };
+  try{updateQuickActions=window.updateQuickActions;}catch(e){}
+
+  const oldInitTitleV11=window.initTitle||((typeof initTitle==='function')?initTitle:null);
+  window.initTitle=function(){
+    oldInitTitleV11&&oldInitTitleV11();addV11Style();
+    const title=document.querySelector('#scr-title h2');if(title)title.textContent='🏰 無限の塔 v11';
+    const notice=document.getElementById('save-notice');
+    if(notice){
+      notice.style.display='block';
+      notice.innerHTML=`<div class="v6-note">☠️ <b>ローグライク仕様</b>：死亡すると通常Lv・装備・素材・通常SPは失う。<br>
+      🚪 <b>v11修正</b>：「次の部屋へ」ボタンの移動処理を安定化。ボタンが消えたり進まない場合でも再描画で復帰。<br>
+      🏪 <b>Shop出現率UP</b>：部屋抽選は ${safeV11(roomRateTextV11())}。</div>`;
+    }
+  };
+  try{initTitle=window.initTitle;}catch(e){}
+
+  addV11Style();
+  try{
+    if(G&&G.nextRoomReady)showNextRoomPanelV11();
+    const title=document.querySelector('#scr-title h2');if(title)title.textContent='🏰 無限の塔 v11';
+  }catch(e){}
+})();
+</script>
