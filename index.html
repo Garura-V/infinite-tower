@@ -8034,12 +8034,8 @@ initTitle();
   'use strict';
 
   const MIN_TITLE_V26 = '🏰 無限の塔';
-  const KEEP_HIDE_ONLY_V26 = new Set([
-    'job-count','job-filter-btns','job-search','job-detail',
-    'save-notice','v12-title-note'
-  ]);
   const HIDE_IDS_V26 = [
-    ...KEEP_HIDE_ONLY_V26,
+    'job-count','job-filter-btns','job-search','job-detail',
     'v12-title-control','v15-title-panel','v16-adaptive-panel',
     'v17-hidden-panel','v17-job-hidden-card','v17-hidden-chip-game',
     'v24-title-panel','v15-dual-panel'
@@ -8065,8 +8061,6 @@ initTitle();
       #job-filter-btns,
       #job-search,
       #job-detail,
-      #save-notice,
-      #v12-title-note,
       #v12-title-control,
       #v15-title-panel,
       #v16-adaptive-panel,
@@ -8100,23 +8094,18 @@ initTitle();
     document.head.appendChild(st);
   }
 
-  function hideOnlyV26(el){
-    if(!el)return;
-    el.style.setProperty('display','none','important');
-  }
-
   function removeByIdV26(id){
     const el=document.getElementById(id);
-    if(!el)return;
-
-    if(KEEP_HIDE_ONLY_V26.has(id)){
-      hideOnlyV26(el);
-      if(id==='job-count')el.textContent='';
-      if(id==='job-search')el.value='';
-      if(id==='job-detail')el.innerHTML='';
-      return;
+    if(el){
+      if(id==='job-count' || id==='job-filter-btns' || id==='job-search' || id==='job-detail'){
+        el.style.setProperty('display','none','important');
+        if(id==='job-count')el.textContent='';
+        if(id==='job-search')el.value='';
+        if(id==='job-detail')el.innerHTML='';
+      }else{
+        el.remove();
+      }
     }
-    el.remove();
   }
 
   function simplifyJobCardsV26(){
@@ -8145,18 +8134,15 @@ initTitle();
     if(!scr)return;
 
     const h2=scr.querySelector('h2');
-    if(h2 && h2.textContent!==MIN_TITLE_V26)h2.textContent=MIN_TITLE_V26;
-
-    const lead=scr.querySelector('p');
-    if(lead && lead.textContent!=='塔に終わりはない。')lead.textContent='塔に終わりはない。';
+    if(h2)h2.textContent=MIN_TITLE_V26;
 
     const h3=scr.querySelector('h3');
     if(h3){
       h3.childNodes.forEach(n=>{
-        if(n.nodeType===Node.TEXT_NODE && n.nodeValue!=='職業を選ぶ')n.nodeValue='職業を選ぶ';
+        if(n.nodeType===Node.TEXT_NODE)n.nodeValue='職業を選ぶ';
       });
       const count=h3.querySelector('#job-count');
-      if(count){count.textContent='';hideOnlyV26(count);}
+      if(count){count.textContent='';count.style.setProperty('display','none','important');}
     }
 
     HIDE_IDS_V26.forEach(removeByIdV26);
@@ -8207,18 +8193,14 @@ initTitle();
     try{addLog=window.addLog;}catch(e){}
   }
 
-  let cleaningV26=false;
-  function runV26(){
-    if(cleaningV26)return;
-    cleaningV26=true;
+  const runV26=()=>{
+    cleanTitleScreenV26();
+    cleanVisibleMetaV26();
     try{
-      cleanTitleScreenV26();
-      cleanVisibleMetaV26();
       const grid=document.getElementById('job-grid');
       if(grid && !grid.children.length && typeof renderJobGrid==='function')renderJobGrid('');
     }catch(e){}
-    cleaningV26=false;
-  }
+  };
 
   if(document.readyState==='loading'){
     document.addEventListener('DOMContentLoaded',runV26,{once:true});
@@ -8226,11 +8208,7 @@ initTitle();
     runV26();
   }
 
-  let moTimerV26=0;
-  const mo=new MutationObserver(()=>{
-    clearTimeout(moTimerV26);
-    moTimerV26=setTimeout(runV26,20);
-  });
+  const mo=new MutationObserver(()=>runV26());
   const startObserver=()=>{
     const scr=document.getElementById('scr-title');
     if(scr)mo.observe(scr,{childList:true,subtree:true,characterData:true});
@@ -8240,5 +8218,142 @@ initTitle();
 
   setTimeout(runV26,50);
   setTimeout(runV26,300);
+})();
+</script>
+<script>
+/* === v27: initial 5 jobs only / condition-based job unlocks === */
+(()=>{
+  'use strict';
+
+  const V27_INITIAL_UNLOCK_COUNT=5;
+  const V27_META_KEY='itrl_meta_v3';
+  const V27_INITIAL_JOB_IDS=['warrior','mage','rogue','paladin','berserker'];
+
+  function clampV27(v,a,b){return Math.max(a,Math.min(b,v));}
+  function escV27(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  function readMetaV27(){
+    try{return Object.assign({unlocked:V27_INITIAL_UNLOCK_COUNT,bestFloor:1},JSON.parse(localStorage.getItem(V27_META_KEY)||'{}'));}
+    catch(e){return {unlocked:V27_INITIAL_UNLOCK_COUNT,bestFloor:1};}
+  }
+  function conditionUnlockedCountV27(meta){
+    const m=meta||readMetaV27();
+    const bestFloor=Math.max(1,Number(m.bestFloor)||1);
+    // 5階層進むごとに1職ずつ条件解放。初回起動・進行なしなら必ず最初の5職のみ。
+    const byFloor=V27_INITIAL_UNLOCK_COUNT+Math.floor(Math.max(0,bestFloor-1)/5);
+    return clampV27(byFloor,V27_INITIAL_UNLOCK_COUNT,JOBS.length);
+  }
+  function normalizeMetaV27(meta){
+    const m=Object.assign({unlocked:V27_INITIAL_UNLOCK_COUNT,bestFloor:1},meta||readMetaV27());
+    const allowed=conditionUnlockedCountV27(m);
+    // 進行条件より多く解放されている古い保存データは表示に出さない。
+    // 逆に、条件達成済みなら自動でそこまで解放する。
+    m.unlocked=allowed;
+    return m;
+  }
+  function saveMetaRawV27(m){try{localStorage.setItem(V27_META_KEY,JSON.stringify(m));}catch(e){}}
+  function reconcileMetaV27(){const m=normalizeMetaV27(readMetaV27());saveMetaRawV27(m);return m;}
+  function unlockedJobsV27(){
+    const n=conditionUnlockedCountV27(reconcileMetaV27());
+    return JOBS.map((j,i)=>Object.assign({idx:i},j)).filter(j=>iLessV27(j.idx,n));
+  }
+  function iLessV27(i,n){return Number(i)>=0 && Number(i)<Number(n);}
+  function isUnlockedJobV27(id){
+    const idx=JOBS.findIndex(j=>j.id===id);
+    return idx>=0 && idx<conditionUnlockedCountV27(reconcileMetaV27());
+  }
+  function cleanTitleExtrasV27(){
+    const ids=['job-count','job-filter-btns','job-search','job-detail','v12-title-control','v15-title-panel','v16-adaptive-panel','v17-hidden-panel','v24-title-panel','v15-dual-panel'];
+    ids.forEach(id=>{
+      const el=document.getElementById(id);if(!el)return;
+      el.style.setProperty('display','none','important');
+      if(id==='job-count')el.textContent='';
+      if(id==='job-search')el.value='';
+      if(id==='job-detail')el.innerHTML='';
+    });
+    const h2=document.querySelector('#scr-title h2');if(h2)h2.textContent='🏰 無限の塔';
+    const h3=document.querySelector('#scr-title h3');
+    if(h3){
+      h3.childNodes.forEach(n=>{if(n.nodeType===Node.TEXT_NODE)n.nodeValue='職業を選ぶ';});
+    }
+  }
+  function addStyleV27(){
+    if(document.getElementById('v27-initial-jobs-style'))return;
+    const st=document.createElement('style');st.id='v27-initial-jobs-style';
+    st.textContent=`
+      #job-count,#job-filter-btns,#job-search,#job-detail,
+      #v12-title-control,#v15-title-panel,#v16-adaptive-panel,#v17-hidden-panel,#v24-title-panel,#v15-dual-panel,
+      .v12-more-card,.v25-more,.v15-job-meta,.v16-cond,.v17-secret-chip{display:none!important}
+      #scr-title .jcard .jt,#scr-title .jcard small{display:none!important}
+      #scr-title .job-grid{margin-top:8px;max-height:min(68vh,620px)}
+    `;
+    document.head.appendChild(st);
+  }
+  function renderJobGridV27(q){
+    addStyleV27();cleanTitleExtrasV27();
+    const grid=document.getElementById('job-grid');if(!grid)return;
+    const query=String(q||'');
+    const lc=query.toLowerCase();
+    let jobs=unlockedJobsV27();
+    if(query){jobs=jobs.filter(j=>j.n.includes(query)||j.t.includes(query)||j.id.includes(lc));}
+    grid.innerHTML='';
+    jobs.forEach(j=>{
+      const d=document.createElement('div');
+      d.className='jcard';d.id='jc-'+j.id;
+      d.innerHTML=`<div class="ji">${escV27(j.i)}</div><div class="jn">${escV27(j.n)}</div>`;
+      d.onclick=()=>selectJob(j.id);
+      grid.appendChild(d);
+    });
+  }
+
+  // meta系を条件開放ベースに固定する
+  const oldSaveMetaV27=window.saveMetaV3||((typeof saveMetaV3==='function')?saveMetaV3:null);
+  window.metaV3=function(){return normalizeMetaV27(readMetaV27());};
+  window.saveMetaV3=function(m){
+    const normalized=normalizeMetaV27(m||readMetaV27());
+    if(typeof oldSaveMetaV27==='function'){
+      try{return oldSaveMetaV27(normalized);}catch(e){}
+    }
+    saveMetaRawV27(normalized);
+  };
+  window.jobUnlockedCount=function(){return conditionUnlockedCountV27(reconcileMetaV27());};
+  try{metaV3=window.metaV3;}catch(e){}
+  try{saveMetaV3=window.saveMetaV3;}catch(e){}
+  try{jobUnlockedCount=window.jobUnlockedCount;}catch(e){}
+
+  // 既存の選択関数にもロック判定をかける
+  const oldSelectJobV27=window.selectJob||((typeof selectJob==='function')?selectJob:null);
+  window.selectJob=function(id){
+    if(!isUnlockedJobV27(id)){
+      const st=document.getElementById('start-btn');if(st)st.disabled=true;
+      return;
+    }
+    return oldSelectJobV27&&oldSelectJobV27(id);
+  };
+  try{selectJob=window.selectJob;}catch(e){}
+
+  window.renderJobGrid=renderJobGridV27;
+  window.filterJobs=function(){renderJobGrid('');};
+  try{renderJobGrid=window.renderJobGrid;}catch(e){}
+  try{filterJobs=window.filterJobs;}catch(e){}
+
+  function runV27(){
+    reconcileMetaV27();
+    addStyleV27();
+    cleanTitleExtrasV27();
+    renderJobGridV27('');
+  }
+
+  const oldInitTitleV27=window.initTitle||((typeof initTitle==='function')?initTitle:null);
+  window.initTitle=function(){
+    const r=oldInitTitleV27&&oldInitTitleV27.apply(this,arguments);
+    setTimeout(runV27,0);
+    return r;
+  };
+  try{initTitle=window.initTitle;}catch(e){}
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',runV27,{once:true});
+  else runV27();
+  setTimeout(runV27,80);
+  setTimeout(runV27,350);
 })();
 </script>
